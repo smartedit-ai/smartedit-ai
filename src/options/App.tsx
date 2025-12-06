@@ -422,31 +422,97 @@ export default function App() {
             <section>
               <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">图片服务配置</h2>
               <div className="space-y-6">
-                <div className="py-4 border-b border-gray-100">
-                  <div className="font-medium text-gray-800 mb-2">Unsplash API Key</div>
-                  <div className="text-sm text-gray-500 mb-2">
-                    获取地址：<a href="https://unsplash.com/developers" target="_blank" className="text-primary hover:underline">unsplash.com/developers</a>
+                {/* Unsplash 配置 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">U</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">Unsplash</div>
+                      <div className="text-xs text-gray-500">高质量免费图片库</div>
+                    </div>
                   </div>
-                  <input
-                    type="password"
-                    value={settings.unsplashKey}
-                    onChange={(e) => setSettings({ ...settings, unsplashKey: e.target.value })}
-                    placeholder="Access Key"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-                  />
+                  <div className="text-sm text-gray-600 mb-3">
+                    Unsplash 提供海量高质量免费图片，适合公众号配图使用。
+                  </div>
+                  <div className="mb-3">
+                    <div className="text-sm text-gray-700 mb-1">Access Key</div>
+                    <div className="flex gap-2">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.unsplashKey}
+                        onChange={(e) => setSettings({ ...settings, unsplashKey: e.target.value })}
+                        placeholder="输入 Unsplash Access Key"
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm"
+                      >
+                        {showApiKey ? '隐藏' : '显示'}
+                      </button>
+                    </div>
+                  </div>
+                  <a 
+                    href="https://unsplash.com/developers" 
+                    target="_blank" 
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    获取 API Key →
+                  </a>
                 </div>
-                <div className="py-4 border-b border-gray-100">
-                  <div className="font-medium text-gray-800 mb-2">Pixabay API Key</div>
-                  <div className="text-sm text-gray-500 mb-2">
-                    获取地址：<a href="https://pixabay.com/api/docs/" target="_blank" className="text-primary hover:underline">pixabay.com/api/docs</a>
+
+                {/* Pixabay 配置 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">P</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">Pixabay</div>
+                      <div className="text-xs text-gray-500">免版权图片素材库</div>
+                    </div>
                   </div>
-                  <input
-                    type="password"
-                    value={settings.pixabayKey}
-                    onChange={(e) => setSettings({ ...settings, pixabayKey: e.target.value })}
-                    placeholder="API Key"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary"
-                  />
+                  <div className="text-sm text-gray-600 mb-3">
+                    Pixabay 提供丰富的免版权图片、插画和矢量图素材。
+                  </div>
+                  <div className="mb-3">
+                    <div className="text-sm text-gray-700 mb-1">API Key</div>
+                    <div className="flex gap-2">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.pixabayKey}
+                        onChange={(e) => setSettings({ ...settings, pixabayKey: e.target.value })}
+                        placeholder="输入 Pixabay API Key"
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm"
+                      >
+                        {showApiKey ? '隐藏' : '显示'}
+                      </button>
+                    </div>
+                  </div>
+                  <a 
+                    href="https://pixabay.com/api/docs/" 
+                    target="_blank" 
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    获取 API Key →
+                  </a>
+                </div>
+
+                {/* 使用提示 */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="text-sm font-medium text-blue-800 mb-2">💡 使用说明</div>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• 配置 API Key 后，可在侧边栏「配图」模块搜索并插入图片</li>
+                    <li>• Unsplash 和 Pixabay 图片均可免费商用，无需额外授权</li>
+                    <li>• API Key 仅存储在本地浏览器中，不会上传到任何服务器</li>
+                    <li>• 建议至少配置一个图片服务以使用配图功能</li>
+                  </ul>
                 </div>
               </div>
             </section>
