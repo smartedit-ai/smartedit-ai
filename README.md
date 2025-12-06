@@ -11,6 +11,25 @@
 
 ---
 
+## 📸 功能预览
+
+<p align="center">
+  <img src="image/1.png" alt="侧边栏样式库" width="800"><br>
+  <em>侧边栏样式库 - 丰富的样式模板，点击即用</em>
+</p>
+
+<p align="center">
+  <img src="image/2.png" alt="AI 写作助手" width="800"><br>
+  <em>AI 写作助手 - 智能生成标题和文章内容</em>
+</p>
+
+<p align="center">
+  <img src="image/3.png" alt="设置页面" width="800"><br>
+  <em>设置页面 - 灵活配置 AI 服务和主题</em>
+</p>
+
+---
+
 ## ✨ 功能特性
 
 ### 🎨 超级编辑器
@@ -150,7 +169,7 @@ EditorHelper/
 
 ## 📝 更新日志
 
-### v1.0.0 (2024-01)
+### v0.0.1 (2025-12)
 - 🎉 首次发布
 - ✨ 样式库功能
 - ✨ AI 标题生成
