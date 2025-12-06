@@ -37,6 +37,8 @@ const IMAGE_APIS = {
   pixabay: 'https://pixabay.com/api/'
 }
 
+const TAVILY_API = 'https://api.tavily.com/search'
+
 interface Settings {
   themeColor: string
   aiProvider: string
@@ -45,6 +47,10 @@ interface Settings {
   customModel: string
   unsplashKey: string
   pixabayKey: string
+  tavilyKey: string
+  proxyEnabled: boolean
+  proxyUrl: string
+  proxyType: 'http' | 'socks5' | 'custom'
 }
 
 // 初始化
@@ -98,6 +104,12 @@ async function handleMessage(message: { type: string; data?: unknown }, sendResp
       case 'SEARCH_IMAGES':
         const images = await searchImages(message.data as { query: string; source: string })
         sendResponse({ success: true, data: images })
+        break
+      case 'TAVILY_SEARCH':
+        console.log('[Tavily] 收到搜索请求:', message.data)
+        const searchResult = await tavilySearch(message.data as { query: string; searchDepth?: string; maxResults?: number })
+        console.log('[Tavily] 搜索结果:', searchResult)
+        sendResponse({ success: true, data: searchResult })
         break
       case 'GET_SETTINGS':
         const settings = await chrome.storage.sync.get('settings')
@@ -207,6 +219,59 @@ async function searchImages(data: { query: string; source: string }) {
     return result2.hits.map((img: { id: number; largeImageURL: string; previewURL: string; tags: string; user: string }) => ({
       id: img.id, url: img.largeImageURL, thumb: img.previewURL,
       description: img.tags, author: img.user
+    }))
+  }
+}
+
+// Tavily 搜索 API
+async function tavilySearch(data: { query: string; searchDepth?: string; maxResults?: number }) {
+  const result = await chrome.storage.sync.get('settings')
+  const settings = result.settings as Settings
+  
+  console.log('[Tavily] 当前设置:', settings)
+  console.log('[Tavily] API Key:', settings?.tavilyKey ? '已配置' : '未配置')
+  
+  if (!settings?.tavilyKey) {
+    throw new Error('请先在设置中配置 Tavily API Key')
+  }
+  
+  const response = await fetch(TAVILY_API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      api_key: settings.tavilyKey,
+      query: data.query,
+      search_depth: data.searchDepth || 'basic',
+      max_results: data.maxResults || 5,
+      include_answer: true,
+      include_raw_content: false
+    })
+  })
+  
+  if (!response.ok) {
+    const errorText = await response.text()
+    let errorMessage = `Tavily 搜索失败: ${response.status}`
+    try {
+      const errorJson = JSON.parse(errorText)
+      errorMessage = errorJson.detail || errorJson.message || errorMessage
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(errorMessage)
+  }
+  
+  const searchResult = await response.json()
+  
+  return {
+    answer: searchResult.answer || '',
+    results: (searchResult.results || []).map((item: { title: string; url: string; content: string; score: number; published_date?: string }) => ({
+      title: item.title,
+      url: item.url,
+      content: item.content,
+      score: item.score,
+      publishedDate: item.published_date
     }))
   }
 }

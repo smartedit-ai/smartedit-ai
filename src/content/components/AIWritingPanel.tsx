@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { streamAIRequest, aiRequest, getEditor, setEditorTitle, formatArticleToHtml } from '../utils'
+import { streamAIRequest, aiRequest, getEditor, setEditorTitle, formatArticleToHtml, tavilySearch, TavilySearchResult } from '../utils'
 
 interface AIWritingPanelProps {
   themeColor: string
@@ -13,6 +13,28 @@ export default function AIWritingPanel({ themeColor }: AIWritingPanelProps) {
   const [generatedArticle, setGeneratedArticle] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [loadingAction, setLoadingAction] = useState('')
+  const [hotSearchResults, setHotSearchResults] = useState<TavilySearchResult | null>(null)
+  const [useHotSearch, setUseHotSearch] = useState(false)
+
+  // 热点搜索
+  const searchHotTopics = async () => {
+    if (!aiInput.trim()) {
+      alert('请先输入搜索关键词')
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingAction('hot-search')
+    setHotSearchResults(null)
+    
+    const result = await tavilySearch(aiInput, 5)
+    if (result) {
+      setHotSearchResults(result)
+    }
+    
+    setIsLoading(false)
+    setLoadingAction('')
+  }
 
   // 生成标题（流式）
   const generateTitles = async () => {
@@ -26,7 +48,23 @@ export default function AIWritingPanel({ themeColor }: AIWritingPanelProps) {
     setAiTitles([])
     setAiResult('')
     
-    const prompt = `根据以下文章内容，生成10个高点击率的微信公众号标题：\n\n${aiInput}`
+    // 构建 prompt，如果有热点搜索结果则加入
+    let prompt = ''
+    if (useHotSearch && hotSearchResults && hotSearchResults.results.length > 0) {
+      const hotContext = hotSearchResults.results
+        .map((r, i) => `${i + 1}. ${r.title}\n${r.content}`)
+        .join('\n\n')
+      prompt = `根据以下主题和最新热点资讯，生成10个高点击率的微信公众号标题：
+
+主题：${aiInput}
+
+最新相关资讯：
+${hotContext}
+
+请结合热点资讯，生成具有时效性和吸引力的标题。`
+    } else {
+      prompt = `根据以下文章内容，生成10个高点击率的微信公众号标题：\n\n${aiInput}`
+    }
     
     await streamAIRequest(
       prompt,
@@ -68,11 +106,30 @@ export default function AIWritingPanel({ themeColor }: AIWritingPanelProps) {
     setLoadingAction('generate-article')
     setGeneratedArticle('')
     
-    const prompt = `标题：${selectedTitle}\n\n${aiInput ? `参考内容：${aiInput}\n\n` : ''}请根据以上标题撰写一篇1000-1500字的微信公众号文章，要求：
+    // 构建 prompt，如果有热点搜索结果则加入
+    let prompt = ''
+    if (useHotSearch && hotSearchResults && hotSearchResults.results.length > 0) {
+      const hotContext = hotSearchResults.results
+        .map((r, i) => `${i + 1}. ${r.title}\n${r.content}`)
+        .join('\n\n')
+      prompt = `标题：${selectedTitle}
+
+${aiInput ? `主题：${aiInput}\n\n` : ''}最新相关资讯：
+${hotContext}
+
+请根据以上标题和最新资讯，撰写一篇1000-1500字的微信公众号文章，要求：
+1. 开头要有吸引力，引起读者兴趣
+2. 结合最新资讯，内容具有时效性
+3. 内容分段清晰，每段有小标题
+4. 语言通俗易懂，适合大众阅读
+5. 结尾有总结和互动引导`
+    } else {
+      prompt = `标题：${selectedTitle}\n\n${aiInput ? `参考内容：${aiInput}\n\n` : ''}请根据以上标题撰写一篇1000-1500字的微信公众号文章，要求：
 1. 开头要有吸引力，引起读者兴趣
 2. 内容分段清晰，每段有小标题
 3. 语言通俗易懂，适合大众阅读
 4. 结尾有总结和互动引导`
+    }
     
     await streamAIRequest(
       prompt,
@@ -165,17 +222,78 @@ export default function AIWritingPanel({ themeColor }: AIWritingPanelProps) {
           className="w-full h-20 p-2 border border-gray-200 rounded-lg text-xs resize-none focus:outline-none focus:border-[#07C160]"
           disabled={isLoading}
         />
+        
+        {/* 热点搜索开关 */}
+        <div className="flex items-center justify-between mt-3 mb-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setUseHotSearch(!useHotSearch)}
+              className={`relative w-10 h-5 rounded-full transition-colors ${
+                useHotSearch ? 'bg-[#07C160]' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                  useHotSearch ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+            <span className="text-xs text-gray-600">🔥 结合热点资讯</span>
+          </div>
+          {useHotSearch && (
+            <button
+              onClick={searchHotTopics}
+              disabled={isLoading || !aiInput}
+              className="px-2 py-1 bg-orange-100 text-orange-600 rounded text-xs hover:bg-orange-200 disabled:opacity-50"
+            >
+              {isLoading && loadingAction === 'hot-search' ? '搜索中...' : '搜索热点'}
+            </button>
+          )}
+        </div>
+
+        {/* 热点搜索结果 */}
+        {useHotSearch && hotSearchResults && hotSearchResults.results.length > 0 && (
+          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="text-xs font-medium text-orange-700 mb-2 flex items-center gap-1">
+              🔥 已获取 {hotSearchResults.results.length} 条热点资讯
+            </div>
+            <div className="space-y-1.5 max-h-24 overflow-y-auto">
+              {hotSearchResults.results.slice(0, 3).map((r, i) => (
+                <div key={i} className="text-[10px] text-gray-600 truncate">
+                  <span className="text-orange-500 mr-1">{i + 1}.</span>
+                  {r.title}
+                </div>
+              ))}
+              {hotSearchResults.results.length > 3 && (
+                <div className="text-[10px] text-gray-400">
+                  +{hotSearchResults.results.length - 3} 条更多资讯
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 热点搜索加载中 */}
+        {isLoading && loadingAction === 'hot-search' && (
+          <div className="mb-3 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-orange-300 border-t-orange-500 rounded-full animate-spin"></div>
+              <span className="text-xs text-orange-600">正在搜索最新热点...</span>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={generateTitles}
           disabled={isLoading || !aiInput}
-          className="mt-2 w-full py-2.5 bg-[#07C160] text-white rounded-lg text-sm hover:bg-[#06AD56] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-2.5 bg-[#07C160] text-white rounded-lg text-sm hover:bg-[#06AD56] disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {isLoading && loadingAction === 'generate-title' ? (
             <>
               <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
               <span>AI 正在生成...</span>
             </>
-          ) : '生成标题'}
+          ) : useHotSearch && hotSearchResults ? '🔥 结合热点生成标题' : '生成标题'}
         </button>
       </div>
 

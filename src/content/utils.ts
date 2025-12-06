@@ -303,3 +303,32 @@ export const searchImages = async (query: string): Promise<Array<{id: string; ur
     return null
   }
 }
+
+// Tavily 热点搜索
+export interface TavilySearchResult {
+  answer: string
+  results: Array<{
+    title: string
+    url: string
+    content: string
+    score: number
+    publishedDate?: string
+  }>
+}
+
+export const tavilySearch = async (query: string, maxResults: number = 5): Promise<TavilySearchResult | null> => {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'TAVILY_SEARCH',
+      data: { query, maxResults }
+    })
+    if (response.success) {
+      return response.data
+    } else {
+      throw new Error(response.error || '搜索失败')
+    }
+  } catch (error) {
+    alert((error as Error).message)
+    return null
+  }
+}

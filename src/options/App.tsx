@@ -11,6 +11,11 @@ interface Settings {
   customModel: string
   unsplashKey: string
   pixabayKey: string
+  tavilyKey: string
+  // 代理设置
+  proxyEnabled: boolean
+  proxyUrl: string
+  proxyType: 'http' | 'socks5' | 'custom'
 }
 
 const defaultSettings: Settings = {
@@ -24,6 +29,11 @@ const defaultSettings: Settings = {
   customModel: '',
   unsplashKey: '',
   pixabayKey: '',
+  tavilyKey: '',
+  // 代理设置
+  proxyEnabled: false,
+  proxyUrl: '',
+  proxyType: 'http',
 }
 
 // AI 服务提供商配置
@@ -173,7 +183,9 @@ export default function App() {
   const navItems = [
     { id: 'general', icon: '⚙️', label: '通用设置' },
     { id: 'ai', icon: '✨', label: 'AI 配置' },
+    { id: 'search', icon: '🔍', label: '热点搜索' },
     { id: 'images', icon: '🖼️', label: '图片服务' },
+    { id: 'proxy', icon: '🌐', label: '网络代理' },
     { id: 'about', icon: 'ℹ️', label: '关于' },
   ]
 
@@ -418,6 +430,93 @@ export default function App() {
             </section>
           )}
 
+          {activeSection === 'search' && (
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">热点搜索配置</h2>
+              <div className="space-y-6">
+                {/* Tavily 配置 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">T</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">Tavily Search API</div>
+                      <div className="text-xs text-gray-500">AI 驱动的实时搜索引擎</div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-3">
+                    Tavily 是专为 AI 应用设计的搜索 API，可检索最新的网络资讯和热点话题，帮助生成更具时效性的内容。
+                  </div>
+                  <div className="mb-3">
+                    <div className="text-sm text-gray-700 mb-1">API Key</div>
+                    <div className="flex gap-2">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.tavilyKey}
+                        onChange={(e) => setSettings({ ...settings, tavilyKey: e.target.value })}
+                        placeholder="tvly-xxxxxxxxxxxxxxxx"
+                        className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm"
+                      >
+                        {showApiKey ? '隐藏' : '显示'}
+                      </button>
+                    </div>
+                  </div>
+                  <a 
+                    href="https://app.tavily.com/home" 
+                    target="_blank" 
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    获取 API Key →
+                  </a>
+                </div>
+
+                {/* 功能说明 */}
+                <div className="p-5 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200">
+                  <div className="text-sm font-medium text-purple-800 mb-3">🔥 热点写作功能</div>
+                  <div className="space-y-3 text-sm text-purple-700">
+                    <div className="flex items-start gap-2">
+                      <span className="text-purple-500">1.</span>
+                      <div>
+                        <strong>热点检索</strong>
+                        <p className="text-xs text-purple-600 mt-0.5">输入关键词，自动搜索最新相关资讯和热点话题</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-purple-500">2.</span>
+                      <div>
+                        <strong>智能标题</strong>
+                        <p className="text-xs text-purple-600 mt-0.5">结合热点内容，AI 生成更具吸引力的标题</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-purple-500">3.</span>
+                      <div>
+                        <strong>内容增强</strong>
+                        <p className="text-xs text-purple-600 mt-0.5">将检索到的最新信息融入文章，提升内容时效性</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 使用提示 */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="text-sm font-medium text-blue-800 mb-2">💡 使用说明</div>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• 配置 API Key 后，可在侧边栏「写作」模块使用热点搜索功能</li>
+                    <li>• Tavily 提供每月 1000 次免费搜索额度</li>
+                    <li>• 搜索结果将自动整合到 AI 写作流程中</li>
+                    <li>• API Key 仅存储在本地浏览器中，不会上传到任何服务器</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
           {activeSection === 'images' && (
             <section>
               <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">图片服务配置</h2>
@@ -512,6 +611,117 @@ export default function App() {
                     <li>• Unsplash 和 Pixabay 图片均可免费商用，无需额外授权</li>
                     <li>• API Key 仅存储在本地浏览器中，不会上传到任何服务器</li>
                     <li>• 建议至少配置一个图片服务以使用配图功能</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeSection === 'proxy' && (
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">网络代理设置</h2>
+              <div className="space-y-6">
+                {/* 代理开关 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                        <span className="text-white text-lg">🌐</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">启用网络代理</div>
+                        <div className="text-xs text-gray-500">通过代理服务器访问第三方 API</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSettings({ ...settings, proxyEnabled: !settings.proxyEnabled })}
+                      className={`relative w-12 h-6 rounded-full transition-colors ${
+                        settings.proxyEnabled ? 'bg-primary' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                          settings.proxyEnabled ? 'translate-x-7' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  
+                  {settings.proxyEnabled && (
+                    <div className="space-y-4 pt-4 border-t border-gray-200">
+                      {/* 代理类型 */}
+                      <div>
+                        <div className="text-sm text-gray-700 mb-2">代理类型</div>
+                        <div className="flex gap-2">
+                          {[
+                            { id: 'http', label: 'HTTP/HTTPS', desc: '通用代理' },
+                            { id: 'socks5', label: 'SOCKS5', desc: '高级代理' },
+                            { id: 'custom', label: '自定义', desc: '完整 URL' },
+                          ].map(type => (
+                            <button
+                              key={type.id}
+                              onClick={() => setSettings({ ...settings, proxyType: type.id as 'http' | 'socks5' | 'custom' })}
+                              className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                                settings.proxyType === type.id
+                                  ? 'border-primary bg-primary-light'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}
+                            >
+                              <div className={`text-sm font-medium ${settings.proxyType === type.id ? 'text-primary' : 'text-gray-700'}`}>
+                                {type.label}
+                              </div>
+                              <div className="text-xs text-gray-500">{type.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* 代理地址 */}
+                      <div>
+                        <div className="text-sm text-gray-700 mb-1">
+                          {settings.proxyType === 'custom' ? '完整代理 URL' : '代理服务器地址'}
+                        </div>
+                        <input
+                          type="text"
+                          value={settings.proxyUrl}
+                          onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
+                          placeholder={
+                            settings.proxyType === 'http' 
+                              ? '例如: 127.0.0.1:7890 或 proxy.example.com:8080'
+                              : settings.proxyType === 'socks5'
+                              ? '例如: 127.0.0.1:1080'
+                              : '例如: http://user:pass@proxy.example.com:8080'
+                          }
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-primary font-mono text-sm"
+                        />
+                        <div className="text-xs text-gray-500 mt-1">
+                          {settings.proxyType === 'http' && '支持 HTTP 和 HTTPS 代理协议'}
+                          {settings.proxyType === 'socks5' && '适用于需要 SOCKS5 代理的网络环境'}
+                          {settings.proxyType === 'custom' && '输入完整的代理 URL，支持认证信息'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 代理说明 */}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="text-sm font-medium text-amber-800 mb-2">⚠️ 重要说明</div>
+                  <ul className="text-xs text-amber-700 space-y-1">
+                    <li>• 代理设置将应用于所有第三方 API 请求（AI 服务、图片搜索等）</li>
+                    <li>• 由于浏览器扩展限制，代理功能需要配合系统代理或代理扩展使用</li>
+                    <li>• 建议使用 AI 服务商提供的「自定义 Base URL」功能替代代理</li>
+                    <li>• 如遇网络问题，请检查代理服务器是否正常运行</li>
+                  </ul>
+                </div>
+
+                {/* 使用建议 */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                  <div className="text-sm font-medium text-blue-800 mb-2">💡 推荐方案</div>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• <strong>国内用户：</strong>推荐使用 DeepSeek、阿里云百炼、硅基流动等国内服务</li>
+                    <li>• <strong>需要 OpenAI：</strong>可使用第三方中转服务，在 AI 配置中设置自定义 Base URL</li>
+                    <li>• <strong>企业用户：</strong>可部署私有代理网关，统一管理 API 访问</li>
                   </ul>
                 </div>
               </div>
