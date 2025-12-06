@@ -1,0 +1,687 @@
+/* 智编助手 - Content Script 样式 */
+
+/* ===== 侧边栏容器 ===== */
+#smartedit-sidebar {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100vh;
+  background: #fff;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.1);
+  z-index: 999999;
+  transition: right 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+#smartedit-sidebar.open {
+  right: 0;
+}
+
+/* ===== 侧边栏头部 ===== */
+.smartedit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #07C160 0%, #06AD56 100%);
+  color: #fff;
+}
+
+.smartedit-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.smartedit-logo svg {
+  width: 28px;
+  height: 28px;
+}
+
+.smartedit-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.smartedit-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== Tab 导航 ===== */
+.smartedit-tabs {
+  display: flex;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.smartedit-tab {
+  flex: 1;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.smartedit-tab:hover {
+  color: #07C160;
+  background: #f0f0f0;
+}
+
+.smartedit-tab.active {
+  color: #07C160;
+  background: #fff;
+  font-weight: 500;
+}
+
+.smartedit-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #07C160;
+}
+
+/* ===== Tab 内容区 ===== */
+.smartedit-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.smartedit-panel {
+  display: none;
+}
+
+.smartedit-panel.active {
+  display: block;
+}
+
+/* ===== 样式库 ===== */
+.style-category {
+  margin-bottom: 20px;
+}
+
+.style-category-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.style-category-title::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: #07C160;
+  border-radius: 2px;
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.style-item {
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.style-item:hover {
+  border-color: #07C160;
+  box-shadow: 0 2px 8px rgba(7, 193, 96, 0.15);
+  transform: translateY(-2px);
+}
+
+.style-item-preview {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.style-item-name {
+  font-size: 12px;
+  color: #666;
+}
+
+/* ===== 颜色选择器 ===== */
+.color-picker-section {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.color-picker-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 12px;
+}
+
+.color-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.color-preset {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.color-preset:hover,
+.color-preset.active {
+  border-color: #333;
+  transform: scale(1.1);
+}
+
+.color-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-custom input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.color-custom input[type="text"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.color-apply-btn {
+  padding: 10px 20px;
+  background: #07C160;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.color-apply-btn:hover {
+  background: #06AD56;
+}
+
+/* ===== AI 功能区 ===== */
+.ai-section {
+  margin-bottom: 20px;
+}
+
+.ai-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-input-group {
+  margin-bottom: 12px;
+}
+
+.ai-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.ai-textarea:focus {
+  outline: none;
+  border-color: #07C160;
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.1);
+}
+
+.ai-btn-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ai-btn {
+  padding: 10px 16px;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.ai-btn:hover {
+  border-color: #07C160;
+  color: #07C160;
+}
+
+.ai-btn.primary {
+  background: #07C160;
+  color: #fff;
+  border-color: #07C160;
+}
+
+.ai-btn.primary:hover {
+  background: #06AD56;
+}
+
+.ai-result {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.ai-result-item {
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid #e8e8e8;
+}
+
+.ai-result-item:hover {
+  border-color: #07C160;
+  background: #f0fff5;
+}
+
+.ai-result-item:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== 配图中心 ===== */
+.image-search {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.image-search-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.image-search-input:focus {
+  outline: none;
+  border-color: #07C160;
+}
+
+.image-search-btn {
+  padding: 10px 20px;
+  background: #07C160;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.image-source-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.image-source-tab {
+  padding: 8px 16px;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.image-source-tab.active {
+  background: #07C160;
+  color: #fff;
+  border-color: #07C160;
+}
+
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.image-item {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 4/3;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.image-item:hover img {
+  transform: scale(1.05);
+}
+
+.image-item-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+  color: #fff;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.image-item:hover .image-item-overlay {
+  opacity: 1;
+}
+
+/* ===== 排版模板 ===== */
+.template-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.template-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: #f8f9fa;
+  border: 1px solid #e8e8e8;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-item:hover {
+  border-color: #07C160;
+  box-shadow: 0 2px 8px rgba(7, 193, 96, 0.15);
+}
+
+.template-preview {
+  width: 60px;
+  height: 80px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  gap: 4px;
+}
+
+.template-preview-line {
+  height: 4px;
+  background: #e0e0e0;
+  border-radius: 2px;
+}
+
+.template-preview-line.title {
+  width: 70%;
+  background: #333;
+}
+
+.template-info {
+  flex: 1;
+}
+
+.template-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.template-desc {
+  font-size: 12px;
+  color: #999;
+}
+
+/* ===== 悬浮工具栏 ===== */
+#smartedit-floating-toolbar {
+  position: fixed;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 999998;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.floating-btn {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.floating-btn:hover {
+  background: #f0f0f0;
+}
+
+.floating-btn.active {
+  background: #e8f8ef;
+  color: #07C160;
+}
+
+.floating-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.floating-btn-tooltip {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 10px;
+  padding: 6px 12px;
+  background: #333;
+  color: #fff;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.floating-btn:hover .floating-btn-tooltip {
+  opacity: 1;
+}
+
+/* ===== 划词工具栏 ===== */
+#smartedit-selection-toolbar {
+  position: fixed;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 6px;
+  z-index: 999999;
+  display: none;
+  gap: 4px;
+}
+
+#smartedit-selection-toolbar.show {
+  display: flex;
+}
+
+.selection-btn {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.selection-btn:hover {
+  background: #f0f0f0;
+}
+
+.selection-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== 加载状态 ===== */
+.smartedit-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.smartedit-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e8e8e8;
+  border-top-color: #07C160;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ===== Toast 提示 ===== */
+#smartedit-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: #333;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 9999999;
+  transition: transform 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#smartedit-toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+#smartedit-toast.success {
+  background: #07C160;
+}
+
+#smartedit-toast.error {
+  background: #fa5151;
+}
+
+/* ===== 滚动条美化 ===== */
+#smartedit-sidebar ::-webkit-scrollbar {
+  width: 6px;
+}
+
+#smartedit-sidebar ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+#smartedit-sidebar ::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+#smartedit-sidebar ::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* ===== 响应式调整 ===== */
+@media (max-width: 1400px) {
+  #smartedit-sidebar {
+    width: 360px;
+  }
+}

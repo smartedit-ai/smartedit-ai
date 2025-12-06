@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>智编助手图标生成器</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #07C160; }
+    .icon-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+    .icon-item {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    canvas {
+      display: block;
+      margin: 10px auto;
+      border: 1px solid #e8e8e8;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #07C160;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #06AD56; }
+    .instructions {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 智编助手图标生成器</h1>
+  <p>点击下方按钮下载各尺寸的 PNG 图标，然后将它们放入 <code>assets/icons/</code> 目录。</p>
+  
+  <div class="icon-container" id="icons"></div>
+  
+  <div class="instructions">
+    <h3>使用说明</h3>
+    <ol>
+      <li>点击每个图标下方的「下载」按钮</li>
+      <li>将下载的 PNG 文件保存到 <code>assets/icons/</code> 目录</li>
+      <li>确保文件名为 <code>icon16.png</code>、<code>icon32.png</code>、<code>icon48.png</code>、<code>icon128.png</code></li>
+      <li>重新加载扩展程序</li>
+    </ol>
+  </div>
+
+  <script>
+    const sizes = [16, 32, 48, 128];
+    const container = document.getElementById('icons');
+    
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const scale = size / 24;
+      
+      ctx.clearRect(0, 0, size, size);
+      
+      // 背景
+      ctx.fillStyle = '#07C160';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.2);
+      ctx.fill();
+      
+      // 图标路径
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2 * scale;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.save();
+      ctx.translate(size * 0.1, size * 0.1);
+      ctx.scale(scale * 0.8, scale * 0.8);
+      
+      // 第一层
+      ctx.beginPath();
+      ctx.moveTo(12, 2);
+      ctx.lineTo(2, 7);
+      ctx.lineTo(12, 12);
+      ctx.lineTo(22, 7);
+      ctx.closePath();
+      ctx.stroke();
+      
+      // 第二层
+      ctx.beginPath();
+      ctx.moveTo(2, 12);
+      ctx.lineTo(12, 17);
+      ctx.lineTo(22, 12);
+      ctx.stroke();
+      
+      // 第三层
+      ctx.beginPath();
+      ctx.moveTo(2, 17);
+      ctx.lineTo(12, 22);
+      ctx.lineTo(22, 17);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    sizes.forEach(size => {
+      const item = document.createElement('div');
+      item.className = 'icon-item';
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      canvas.id = `icon-${size}`;
+      
+      drawIcon(canvas, size);
+      
+      const label = document.createElement('div');
+      label.textContent = `${size}x${size}`;
+      
+      const btn = document.createElement('button');
+      btn.textContent = '下载';
+      btn.onclick = () => {
+        const link = document.createElement('a');
+        link.download = `icon${size}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+      
+      item.appendChild(canvas);
+      item.appendChild(label);
+      item.appendChild(btn);
+      container.appendChild(item);
+    });
+  </script>
+</body>
+</html>

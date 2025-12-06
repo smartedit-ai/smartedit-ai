@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智编助手 - 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <header class="options-header">
+      <div class="header-content">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="32" height="32">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          <div>
+            <h1>智编助手</h1>
+            <p>SmartEdit AI - 设置中心</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="options-main">
+      <nav class="options-nav">
+        <button class="nav-item active" data-section="general">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+          通用设置
+        </button>
+        <button class="nav-item" data-section="ai">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
+          </svg>
+          AI 配置
+        </button>
+        <button class="nav-item" data-section="images">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          图片服务
+        </button>
+        <button class="nav-item" data-section="about">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          关于
+        </button>
+      </nav>
+
+      <div class="options-content">
+        <!-- 通用设置 -->
+        <section class="settings-section active" id="section-general">
+          <h2>通用设置</h2>
+          
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">默认主题色</div>
+                <div class="setting-desc">设置样式库的默认主题颜色</div>
+              </div>
+              <div class="setting-control">
+                <input type="color" id="theme-color" value="#07C160">
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">显示悬浮工具栏</div>
+                <div class="setting-desc">在微信编辑器页面左侧显示快捷工具栏</div>
+              </div>
+              <div class="setting-control">
+                <label class="switch">
+                  <input type="checkbox" id="show-floating-toolbar" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">自动插入样式</div>
+                <div class="setting-desc">点击样式后自动插入到编辑器光标位置</div>
+              </div>
+              <div class="setting-control">
+                <label class="switch">
+                  <input type="checkbox" id="auto-insert-style" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <div class="setting-label">划词工具栏</div>
+                <div class="setting-desc">选中文字时显示 AI 改写工具栏</div>
+              </div>
+              <div class="setting-control">
+                <label class="switch">
+                  <input type="checkbox" id="show-selection-toolbar" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI 配置 -->
+        <section class="settings-section" id="section-ai">
+          <h2>AI 配置</h2>
+          
+          <div class="setting-group">
+            <div class="setting-item vertical">
+              <div class="setting-info">
+                <div class="setting-label">AI 服务提供商</div>
+                <div class="setting-desc">选择您要使用的 AI 服务</div>
+              </div>
+              <div class="setting-control full-width">
+                <select id="ai-provider">
+                  <option value="openai">OpenAI (GPT-3.5/4)</option>
+                  <option value="zhipu">智谱 AI (GLM-4)</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="setting-item vertical">
+              <div class="setting-info">
+                <div class="setting-label">API Key</div>
+                <div class="setting-desc">输入您的 AI 服务 API Key（本地存储，不会上传）</div>
+              </div>
+              <div class="setting-control full-width">
+                <input type="password" id="api-key" placeholder="sk-xxxxxxxxxxxxxxxx">
+                <button class="btn-secondary" id="toggle-api-key">显示</button>
+              </div>
+            </div>
+            
+            <div class="setting-item vertical">
+              <div class="setting-info">
+                <div class="setting-label">自定义 API 地址（可选）</div>
+                <div class="setting-desc">如使用代理或自建服务，请填写完整 API 地址</div>
+              </div>
+              <div class="setting-control full-width">
+                <input type="text" id="custom-api-url" placeholder="https://api.openai.com/v1/chat/completions">
+              </div>
+            </div>
+          </div>
+          
+          <div class="test-section">
+            <button class="btn-primary" id="test-ai-btn">测试 AI 连接</button>
+            <div class="test-result" id="ai-test-result"></div>
+          </div>
+        </section>
+
+        <!-- 图片服务 -->
+        <section class="settings-section" id="section-images">
+          <h2>图片服务配置</h2>
+          
+          <div class="setting-group">
+            <div class="setting-item vertical">
+              <div class="setting-info">
+                <div class="setting-label">Unsplash API Key</div>
+                <div class="setting-desc">
+                  获取地址：<a href="https://unsplash.com/developers" target="_blank">unsplash.com/developers</a>
+                </div>
+              </div>
+              <div class="setting-control full-width">
+                <input type="password" id="unsplash-key" placeholder="Access Key">
+              </div>
+            </div>
+            
+            <div class="setting-item vertical">
+              <div class="setting-info">
+                <div class="setting-label">Pixabay API Key</div>
+                <div class="setting-desc">
+                  获取地址：<a href="https://pixabay.com/api/docs/" target="_blank">pixabay.com/api/docs</a>
+                </div>
+              </div>
+              <div class="setting-control full-width">
+                <input type="password" id="pixabay-key" placeholder="API Key">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 关于 -->
+        <section class="settings-section" id="section-about">
+          <h2>关于智编助手</h2>
+          
+          <div class="about-content">
+            <div class="about-logo">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#07C160" stroke-width="2" width="64" height="64">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            
+            <h3>智编助手 SmartEdit AI</h3>
+            <p class="version-text">版本 1.0.0</p>
+            
+            <div class="about-desc">
+              <p>基于微信公众平台的 AI 增强编辑器插件，提供样式库、AI 写作、配图中心、一键排版等功能，让公众号创作更高效。</p>
+            </div>
+            
+            <div class="about-features">
+              <h4>核心功能</h4>
+              <ul>
+                <li>📝 丰富的样式库，一键插入精美排版</li>
+                <li>🎨 一键换色，快速统一文章风格</li>
+                <li>✨ AI 标题生成，提升文章点击率</li>
+                <li>🔄 AI 划词改写，润色/扩写/缩写</li>
+                <li>🖼️ 配图中心，海量免费图片素材</li>
+                <li>📋 一键排版，多种模板快速应用</li>
+              </ul>
+            </div>
+            
+            <div class="about-links">
+              <a href="https://github.com/smartedit" target="_blank" class="link-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+              </a>
+              <a href="mailto:support@smartedit.ai" class="link-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                联系我们
+              </a>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="options-footer">
+      <button class="btn-secondary" id="reset-btn">恢复默认</button>
+      <button class="btn-primary" id="save-btn">保存设置</button>
+    </footer>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
