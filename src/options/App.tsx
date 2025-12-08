@@ -10,6 +10,15 @@ interface RSSFeed {
   lastFetched?: string
 }
 
+// Obsidian 配置接口
+interface ObsidianConfig {
+  enabled: boolean
+  apiUrl: string
+  apiKey: string
+  defaultPath: string
+  autoSync: boolean
+}
+
 interface Settings {
   themeColor: string
   showFloatingToolbar: boolean
@@ -28,7 +37,9 @@ interface Settings {
   proxyType: 'http' | 'socks5' | 'custom'
   // RSS 订阅设置
   rssFeeds: RSSFeed[]
-  rssRefreshInterval: number // 刷新间隔（分钟）
+  rssRefreshInterval: number
+  // Obsidian 设置
+  obsidian: ObsidianConfig
 }
 
 // 预设 RSS 源
@@ -58,6 +69,14 @@ const defaultSettings: Settings = {
   // RSS 订阅设置
   rssFeeds: DEFAULT_RSS_FEEDS,
   rssRefreshInterval: 30,
+  // Obsidian 设置
+  obsidian: {
+    enabled: false,
+    apiUrl: 'https://localhost:27124',
+    apiKey: '',
+    defaultPath: '公众号',
+    autoSync: false
+  }
 }
 
 // AI 服务提供商配置
@@ -362,6 +381,7 @@ proxyUrl: ${config.proxyUrl || ''}
     { id: 'ai', icon: '✨', label: 'AI 配置' },
     { id: 'search', icon: '🔍', label: '热点搜索' },
     { id: 'rss', icon: '📰', label: 'RSS 订阅' },
+    { id: 'obsidian', icon: '💎', label: 'Obsidian' },
     { id: 'images', icon: '🖼️', label: '图片服务' },
     { id: 'proxy', icon: '🌐', label: '网络代理' },
     { id: 'backup', icon: '💾', label: '备份恢复' },
@@ -924,6 +944,189 @@ proxyUrl: ${config.proxyUrl || ''}
                     <li>• 启用/禁用订阅源可控制是否在列表中显示</li>
                     <li>• 部分网站可能因跨域限制无法直接获取，建议使用代理</li>
                   </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* Obsidian 集成设置 */}
+          {activeSection === 'obsidian' && (
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">Obsidian 集成</h2>
+              <div className="space-y-6">
+                {/* 功能介绍 */}
+                <div className="p-5 bg-purple-50 rounded-xl border border-purple-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">💎</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">Obsidian Local REST API</div>
+                      <div className="text-xs text-gray-500">将内容直接保存到 Obsidian 知识库</div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">
+                    通过 Obsidian Local REST API 插件，可以直接将公众号草稿、收藏的文章保存到你的 Obsidian 知识库中，实现内容的统一管理。
+                  </p>
+                  <a 
+                    href="https://github.com/coddingtonbear/obsidian-local-rest-api" 
+                    target="_blank" 
+                    className="inline-flex items-center gap-1 text-sm text-purple-600 hover:underline"
+                  >
+                    📦 安装 Obsidian 插件 →
+                  </a>
+                </div>
+
+                {/* 启用开关 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="font-medium text-gray-800">启用 Obsidian 集成</div>
+                      <div className="text-xs text-gray-500">开启后可在侧边栏直接保存内容到 Obsidian</div>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={settings.obsidian?.enabled || false}
+                        onChange={(e) => setSettings({
+                          ...settings,
+                          obsidian: { ...settings.obsidian, enabled: e.target.checked }
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* API 配置 */}
+                {settings.obsidian?.enabled && (
+                  <>
+                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                      <div className="font-medium text-gray-800 mb-2">API 配置</div>
+                      
+                      {/* API 地址 */}
+                      <div>
+                        <div className="text-sm text-gray-700 mb-1">API 地址</div>
+                        <input
+                          type="text"
+                          value={settings.obsidian?.apiUrl || 'https://localhost:27124'}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            obsidian: { ...settings.obsidian, apiUrl: e.target.value }
+                          })}
+                          placeholder="https://localhost:27124"
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 font-mono text-sm"
+                        />
+                        <div className="text-xs text-gray-400 mt-1">默认端口为 27124，如有修改请对应调整</div>
+                      </div>
+
+                      {/* API Key */}
+                      <div>
+                        <div className="text-sm text-gray-700 mb-1">API Key</div>
+                        <div className="flex gap-2">
+                          <input
+                            type={showApiKey ? 'text' : 'password'}
+                            value={settings.obsidian?.apiKey || ''}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              obsidian: { ...settings.obsidian, apiKey: e.target.value }
+                            })}
+                            placeholder="在 Obsidian 插件设置中获取"
+                            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 font-mono text-sm"
+                          />
+                          <button
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm"
+                          >
+                            {showApiKey ? '隐藏' : '显示'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 默认保存路径 */}
+                      <div>
+                        <div className="text-sm text-gray-700 mb-1">默认保存路径</div>
+                        <input
+                          type="text"
+                          value={settings.obsidian?.defaultPath || '公众号'}
+                          onChange={(e) => setSettings({
+                            ...settings,
+                            obsidian: { ...settings.obsidian, defaultPath: e.target.value }
+                          })}
+                          placeholder="公众号/草稿"
+                          className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:border-purple-500 text-sm"
+                        />
+                        <div className="text-xs text-gray-400 mt-1">相对于 Vault 根目录的路径，如：公众号/草稿</div>
+                      </div>
+
+                      {/* 测试连接按钮 */}
+                      <button
+                        onClick={async () => {
+                          if (!settings.obsidian?.apiUrl || !settings.obsidian?.apiKey) {
+                            alert('请先填写 API 地址和 API Key')
+                            return
+                          }
+                          try {
+                            const response = await fetch(`${settings.obsidian.apiUrl}/`, {
+                              method: 'GET',
+                              headers: { 'Authorization': `Bearer ${settings.obsidian.apiKey}` }
+                            })
+                            if (response.ok) {
+                              const data = await response.json()
+                              alert(`✅ 连接成功！\n\nVault: ${data.name || 'Unknown'}\n认证状态: ${data.authenticated ? '已认证' : '未认证'}`)
+                            } else if (response.status === 401) {
+                              alert('❌ API Key 无效，请检查配置')
+                            } else {
+                              alert(`❌ 连接失败: HTTP ${response.status}`)
+                            }
+                          } catch (error) {
+                            alert(`❌ 无法连接到 Obsidian\n\n可能原因：\n1. Obsidian 未运行\n2. Local REST API 插件未启用\n3. API 地址配置错误\n\n错误信息: ${(error as Error).message}`)
+                          }
+                        }}
+                        className="w-full py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      >
+                        🔗 测试连接
+                      </button>
+                    </div>
+
+                    {/* 同步设置 */}
+                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-800">自动同步</div>
+                          <div className="text-xs text-gray-500">保存草稿时自动同步到 Obsidian</div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={settings.obsidian?.autoSync || false}
+                            onChange={(e) => setSettings({
+                              ...settings,
+                              obsidian: { ...settings.obsidian, autoSync: e.target.checked }
+                            })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* 使用说明 */}
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-amber-500">📖</span>
+                    <span className="text-sm font-medium text-amber-700">配置步骤</span>
+                  </div>
+                  <ol className="text-xs text-amber-600 space-y-1 list-decimal list-inside">
+                    <li>在 Obsidian 中安装 "Local REST API" 插件</li>
+                    <li>启用插件并在设置中获取 API Key</li>
+                    <li>将 API Key 填入上方配置</li>
+                    <li>点击「测试连接」验证配置是否正确</li>
+                    <li>配置完成后，可在侧边栏「存储」模块中使用「保存到 Obsidian」功能</li>
+                  </ol>
                 </div>
               </div>
             </section>

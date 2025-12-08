@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { addCollection, isCollected } from '../../lib/storage'
 
 interface RSSItem {
   title: string
@@ -18,6 +19,7 @@ export default function RSSPanel({ themeColor }: RSSPanelProps) {
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState<RSSItem | null>(null)
   const [filterSource, setFilterSource] = useState<string>('all')
+  const [collectedUrls, setCollectedUrls] = useState<Set<string>>(new Set())
 
   // 获取 RSS 内容
   const fetchRSS = async () => {
@@ -300,6 +302,37 @@ export default function RSSPanel({ themeColor }: RSSPanelProps) {
                 📋 复制全部
               </button>
             </div>
+            {/* 收藏按钮 */}
+            <button
+              onClick={async () => {
+                const alreadyCollected = await isCollected(selectedItem.link)
+                if (alreadyCollected) {
+                  alert('该文章已收藏')
+                  return
+                }
+                try {
+                  await addCollection({
+                    type: 'article',
+                    title: selectedItem.title,
+                    content: selectedItem.description,
+                    source: selectedItem.source,
+                    sourceUrl: selectedItem.link,
+                    tags: []
+                  })
+                  setCollectedUrls(prev => new Set([...prev, selectedItem.link]))
+                  alert('收藏成功！可在「存储」模块查看')
+                } catch (err) {
+                  alert('收藏失败：' + (err as Error).message)
+                }
+              }}
+              className={`w-full py-2 rounded-lg text-sm transition-colors ${
+                collectedUrls.has(selectedItem.link)
+                  ? 'bg-yellow-100 text-yellow-700'
+                  : 'bg-yellow-400 text-white hover:bg-yellow-500'
+              }`}
+            >
+              {collectedUrls.has(selectedItem.link) ? '⭐ 已收藏' : '⭐ 收藏文章'}
+            </button>
           </div>
         </div>
       )}
