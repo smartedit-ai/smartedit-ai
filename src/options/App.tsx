@@ -180,12 +180,166 @@ export default function App() {
     setTimeout(() => notification.remove(), 2000)
   }
 
+  // 生成配置模板 Markdown
+  const generateConfigTemplate = (currentSettings?: Settings) => {
+    const config = currentSettings || defaultSettings
+    return `# 智编助手 - 配置文件
+# SmartEdit AI Configuration
+# 
+# 使用说明：
+# 1. 填写下方配置项的值（替换 YOUR_xxx 占位符）
+# 2. 保存文件后，在设置中心点击"导入配置"
+# 3. 选择此文件即可自动更新所有配置
+#
+# 注意：请妥善保管此文件，其中包含 API 密钥等敏感信息
+# ============================================================
+
+## 通用设置
+# 主题色（十六进制颜色值）
+themeColor: ${config.themeColor || '#07C160'}
+
+# 显示浮动工具栏（true/false）
+showFloatingToolbar: ${config.showFloatingToolbar}
+
+# 自动插入样式（true/false）
+autoInsertStyle: ${config.autoInsertStyle}
+
+# 显示选中文本工具栏（true/false）
+showSelectionToolbar: ${config.showSelectionToolbar}
+
+## AI 配置
+# AI 服务提供商（openai/deepseek/moonshot/qwen/zhipu/custom）
+aiProvider: ${config.aiProvider || 'openai'}
+
+# API Key（必填）
+apiKey: ${config.apiKey || 'YOUR_API_KEY'}
+
+# 自定义 API Base URL（可选，使用自定义服务商时填写）
+customBaseUrl: ${config.customBaseUrl || ''}
+
+# 自定义模型名称（可选）
+customModel: ${config.customModel || ''}
+
+## 热点搜索配置
+# Tavily API Key（用于热点资讯搜索）
+# 获取地址：https://tavily.com/
+tavilyKey: ${config.tavilyKey || 'YOUR_TAVILY_API_KEY'}
+
+## 图片服务配置
+# Unsplash Access Key（用于图片搜索）
+# 获取地址：https://unsplash.com/developers
+unsplashKey: ${config.unsplashKey || 'YOUR_UNSPLASH_ACCESS_KEY'}
+
+# Pixabay API Key（用于图片搜索）
+# 获取地址：https://pixabay.com/api/docs/
+pixabayKey: ${config.pixabayKey || 'YOUR_PIXABAY_API_KEY'}
+
+## 网络代理配置
+# 启用代理（true/false）
+proxyEnabled: ${config.proxyEnabled}
+
+# 代理类型（http/socks5/custom）
+proxyType: ${config.proxyType || 'http'}
+
+# 代理地址（例如：http://127.0.0.1:7890）
+proxyUrl: ${config.proxyUrl || ''}
+
+# ============================================================
+# 配置文件版本：1.0
+# 生成时间：${new Date().toLocaleString()}
+`
+  }
+
+  // 下载配置模板
+  const downloadConfigTemplate = () => {
+    const content = generateConfigTemplate()
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'smartedit-config-template.md'
+    a.click()
+    URL.revokeObjectURL(url)
+    showNotification('配置模板已下载')
+  }
+
+  // 导出当前配置
+  const exportCurrentConfig = () => {
+    const content = generateConfigTemplate(settings)
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `smartedit-config-backup-${new Date().toISOString().slice(0, 10)}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+    showNotification('配置已导出备份')
+  }
+
+  // 解析配置文件
+  const parseConfigFile = (content: string): Partial<Settings> => {
+    const config: Record<string, string | boolean> = {}
+    const lines = content.split('\n')
+    
+    for (const line of lines) {
+      // 跳过注释和空行
+      if (line.startsWith('#') || line.trim() === '') continue
+      
+      const match = line.match(/^(\w+):\s*(.*)$/)
+      if (match) {
+        const [, key, value] = match
+        const trimmedValue = value.trim()
+        
+        // 转换布尔值
+        if (trimmedValue === 'true') {
+          config[key] = true
+        } else if (trimmedValue === 'false') {
+          config[key] = false
+        } else if (!trimmedValue.startsWith('YOUR_')) {
+          // 忽略未填写的占位符
+          config[key] = trimmedValue
+        }
+      }
+    }
+    
+    return config as Partial<Settings>
+  }
+
+  // 导入配置
+  const importConfig = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md,.txt'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      try {
+        const content = await file.text()
+        const importedConfig = parseConfigFile(content)
+        
+        // 合并配置
+        const newSettings = { ...settings, ...importedConfig }
+        setSettings(newSettings as Settings)
+        
+        // 保存到 storage
+        await chrome.storage.sync.set({ settings: newSettings })
+        
+        showNotification('配置导入成功！')
+      } catch (error) {
+        alert('配置文件解析失败：' + (error as Error).message)
+      }
+    }
+    input.click()
+  }
+
   const navItems = [
     { id: 'general', icon: '⚙️', label: '通用设置' },
     { id: 'ai', icon: '✨', label: 'AI 配置' },
     { id: 'search', icon: '🔍', label: '热点搜索' },
     { id: 'images', icon: '🖼️', label: '图片服务' },
     { id: 'proxy', icon: '🌐', label: '网络代理' },
+    { id: 'backup', icon: '💾', label: '备份恢复' },
     { id: 'about', icon: 'ℹ️', label: '关于' },
   ]
 
@@ -722,6 +876,102 @@ export default function App() {
                     <li>• <strong>国内用户：</strong>推荐使用 DeepSeek、阿里云百炼、硅基流动等国内服务</li>
                     <li>• <strong>需要 OpenAI：</strong>可使用第三方中转服务，在 AI 配置中设置自定义 Base URL</li>
                     <li>• <strong>企业用户：</strong>可部署私有代理网关，统一管理 API 访问</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* 备份恢复 */}
+          {activeSection === 'backup' && (
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">备份与恢复</h2>
+              <div className="space-y-6">
+                {/* 导出配置 */}
+                <div className="p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-2xl">📤</span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800 text-lg">导出当前配置</div>
+                      <div className="text-sm text-gray-600">备份所有已填写的配置项，方便迁移到其他设备</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={exportCurrentConfig}
+                    className="w-full py-3 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span>💾</span> 导出配置备份
+                  </button>
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    将下载包含所有配置的 Markdown 文件
+                  </div>
+                </div>
+
+                {/* 导入配置 */}
+                <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-2xl">📥</span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800 text-lg">导入配置文件</div>
+                      <div className="text-sm text-gray-600">从备份文件恢复配置，快速完成设置</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={importConfig}
+                    className="w-full py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span>📂</span> 选择配置文件导入
+                  </button>
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    支持 .md 和 .txt 格式的配置文件
+                  </div>
+                </div>
+
+                {/* 下载模板 */}
+                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
+                      <span className="text-white text-2xl">📄</span>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-800 text-lg">下载配置模板</div>
+                      <div className="text-sm text-gray-600">获取空白配置模板，手动填写后导入</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={downloadConfigTemplate}
+                    className="w-full py-3 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span>⬇️</span> 下载配置模板
+                  </button>
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    模板包含所有配置项说明和示例值
+                  </div>
+                </div>
+
+                {/* 配置说明 */}
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                  <div className="text-sm font-medium text-amber-800 mb-2">📋 配置文件说明</div>
+                  <ul className="text-xs text-amber-700 space-y-1.5">
+                    <li>• 配置文件采用 Markdown 格式，便于阅读和编辑</li>
+                    <li>• 以 <code className="bg-amber-100 px-1 rounded">#</code> 开头的行为注释，不会被解析</li>
+                    <li>• 配置格式为 <code className="bg-amber-100 px-1 rounded">key: value</code>，冒号后需有空格</li>
+                    <li>• 以 <code className="bg-amber-100 px-1 rounded">YOUR_</code> 开头的占位符会被忽略</li>
+                    <li>• 导入配置会与现有配置合并，不会清空未包含的项</li>
+                  </ul>
+                </div>
+
+                {/* 安全提示 */}
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="text-sm font-medium text-red-800 mb-2">🔐 安全提示</div>
+                  <ul className="text-xs text-red-700 space-y-1">
+                    <li>• 配置文件包含 API 密钥等敏感信息，请妥善保管</li>
+                    <li>• 不要将配置文件上传到公开的代码仓库或网盘</li>
+                    <li>• 建议使用加密存储或密码管理器保存配置文件</li>
                   </ul>
                 </div>
               </div>

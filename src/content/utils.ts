@@ -33,18 +33,50 @@ export const insertStyle = (html: string, themeColor: string) => {
   editor.innerHTML += coloredHtml
 }
 
-// 插入图片到编辑器
+// 插入图片到编辑器（光标位置或末尾）
 export const insertImage = (url: string, description?: string) => {
   const editor = getEditor()
   if (!editor) {
     alert('请先打开文章编辑页面')
     return
   }
+  
   const img = document.createElement('img')
   img.src = url
   img.alt = description || '图片'
   img.style.cssText = 'max-width:100%;height:auto;display:block;margin:20px auto;border-radius:8px'
-  editor.appendChild(img)
+  
+  // 尝试在光标位置插入
+  const selection = window.getSelection()
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0)
+    
+    // 检查光标是否在编辑器内
+    if (editor.contains(range.commonAncestorContainer)) {
+      // 创建包装容器，确保图片独占一行
+      const wrapper = document.createElement('p')
+      wrapper.style.cssText = 'text-align:center;margin:20px 0'
+      wrapper.appendChild(img)
+      
+      // 在光标位置插入
+      range.deleteContents()
+      range.insertNode(wrapper)
+      
+      // 将光标移动到图片后面
+      range.setStartAfter(wrapper)
+      range.setEndAfter(wrapper)
+      selection.removeAllRanges()
+      selection.addRange(range)
+      
+      return
+    }
+  }
+  
+  // 如果光标不在编辑器内，则追加到末尾
+  const wrapper = document.createElement('p')
+  wrapper.style.cssText = 'text-align:center;margin:20px 0'
+  wrapper.appendChild(img)
+  editor.appendChild(wrapper)
 }
 
 // 设置微信编辑器标题
@@ -158,7 +190,7 @@ export const autoFormatMarkdown = (themeColor: string) => {
   alert('Markdown 排版完成')
 }
 
-// 格式化文章为 HTML
+// 格式化文章为 HTML（使用 section 包裹，确保可编辑）
 export const formatArticleToHtml = (article: string, themeColor: string): string => {
   const paragraphs = article.split('\n\n').filter(p => p.trim())
   let html = ''
@@ -168,15 +200,55 @@ export const formatArticleToHtml = (article: string, themeColor: string): string
     if (trimmed.startsWith('#')) {
       const level = trimmed.match(/^#+/)?.[0].length || 2
       const text = trimmed.replace(/^#+\s*/, '')
-      html += `<h${Math.min(level + 1, 4)} style="font-size:${20 - level * 2}px;font-weight:bold;color:${themeColor};margin:24px 0 16px 0">${text}</h${Math.min(level + 1, 4)}>`
+      html += `<section style="margin:24px 0 16px 0"><h${Math.min(level + 1, 4)} style="font-size:${20 - level * 2}px;font-weight:bold;color:${themeColor};margin:0">${text}</h${Math.min(level + 1, 4)}></section>`
     } else if (trimmed.length < 50 && !trimmed.includes('。')) {
-      html += `<h3 style="font-size:17px;font-weight:bold;color:${themeColor};margin:24px 0 12px 0">${trimmed}</h3>`
+      html += `<section style="margin:24px 0 12px 0"><h3 style="font-size:17px;font-weight:bold;color:${themeColor};margin:0">${trimmed}</h3></section>`
     } else {
-      html += `<p style="font-size:15px;line-height:2;color:#333;margin-bottom:16px;text-indent:2em">${trimmed}</p>`
+      html += `<section style="margin-bottom:16px"><p style="font-size:15px;line-height:2;color:#333;margin:0;text-indent:2em">${trimmed}</p></section>`
     }
   })
   
   return html
+}
+
+// 插入文章到编辑器（保持可编辑性）
+export const insertArticleContent = (article: string, themeColor: string): boolean => {
+  const editor = getEditor()
+  if (!editor) {
+    return false
+  }
+  
+  const html = formatArticleToHtml(article, themeColor)
+  
+  // 创建临时容器解析 HTML
+  const temp = document.createElement('div')
+  temp.innerHTML = html
+  
+  // 清空编辑器
+  editor.innerHTML = ''
+  
+  // 逐个插入子元素，确保 DOM 结构正确
+  while (temp.firstChild) {
+    editor.appendChild(temp.firstChild)
+  }
+  
+  // 触发 input 事件，让编辑器知道内容已更新
+  editor.dispatchEvent(new Event('input', { bubbles: true }))
+  
+  // 将光标移动到末尾
+  const selection = window.getSelection()
+  if (selection) {
+    const range = document.createRange()
+    range.selectNodeContents(editor)
+    range.collapse(false) // 折叠到末尾
+    selection.removeAllRanges()
+    selection.addRange(range)
+  }
+  
+  // 聚焦编辑器
+  editor.focus()
+  
+  return true
 }
 
 // 流式 AI 请求
@@ -269,10 +341,19 @@ export const streamAIRequest = async (
 // 普通 AI 请求
 export const aiRequest = async (action: string, text: string): Promise<string | null> => {
   try {
+    if (!chrome?.runtime?.sendMessage) {
+      throw new Error('扩展连接已断开，请刷新页面重试')
+    }
+    
     const response = await chrome.runtime.sendMessage({
       type: 'AI_REQUEST',
       data: { action, text }
     })
+    
+    if (!response) {
+      throw new Error('未收到响应，请刷新页面重试')
+    }
+    
     if (response.success) {
       return response.data
     } else {
@@ -280,7 +361,12 @@ export const aiRequest = async (action: string, text: string): Promise<string | 
       return null
     }
   } catch (error) {
-    alert((error as Error).message)
+    const errorMsg = (error as Error).message
+    if (errorMsg.includes('Extension context invalidated') || errorMsg.includes('Cannot read properties of undefined')) {
+      alert('扩展连接已断开，请刷新页面后重试')
+    } else {
+      alert(errorMsg)
+    }
     return null
   }
 }
@@ -288,10 +374,19 @@ export const aiRequest = async (action: string, text: string): Promise<string | 
 // 搜索图片
 export const searchImages = async (query: string): Promise<Array<{id: string; url: string; thumb: string; description?: string; author?: string}> | null> => {
   try {
+    if (!chrome?.runtime?.sendMessage) {
+      throw new Error('扩展连接已断开，请刷新页面重试')
+    }
+    
     const response = await chrome.runtime.sendMessage({
       type: 'SEARCH_IMAGES',
       data: { query, source: 'unsplash' }
     })
+    
+    if (!response) {
+      throw new Error('未收到响应，请刷新页面重试')
+    }
+    
     if (response.success) {
       return response.data
     } else {
@@ -299,7 +394,12 @@ export const searchImages = async (query: string): Promise<Array<{id: string; ur
       return null
     }
   } catch (error) {
-    alert((error as Error).message)
+    const errorMsg = (error as Error).message
+    if (errorMsg.includes('Extension context invalidated') || errorMsg.includes('Cannot read properties of undefined')) {
+      alert('扩展连接已断开，请刷新页面后重试')
+    } else {
+      alert(errorMsg)
+    }
     return null
   }
 }
@@ -318,17 +418,33 @@ export interface TavilySearchResult {
 
 export const tavilySearch = async (query: string, maxResults: number = 5): Promise<TavilySearchResult | null> => {
   try {
+    // 检查 chrome.runtime 是否可用
+    if (!chrome?.runtime?.sendMessage) {
+      throw new Error('扩展连接已断开，请刷新页面重试')
+    }
+    
     const response = await chrome.runtime.sendMessage({
       type: 'TAVILY_SEARCH',
       data: { query, maxResults }
     })
+    
+    if (!response) {
+      throw new Error('未收到响应，请刷新页面重试')
+    }
+    
     if (response.success) {
       return response.data
     } else {
       throw new Error(response.error || '搜索失败')
     }
   } catch (error) {
-    alert((error as Error).message)
+    const errorMsg = (error as Error).message
+    // 检查是否是扩展断开连接的错误
+    if (errorMsg.includes('Extension context invalidated') || errorMsg.includes('Cannot read properties of undefined')) {
+      alert('扩展连接已断开，请刷新页面后重试')
+    } else {
+      alert(errorMsg)
+    }
     return null
   }
 }

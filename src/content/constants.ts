@@ -99,4 +99,65 @@ export const FORMAT_TEMPLATES = [
 ]
 
 // 图片搜索快捷标签
-export const IMAGE_SEARCH_TAGS = ['风景', '科技', '商务', '自然', '城市', '美食']
+export const IMAGE_SEARCH_TAGS = ['风景', '科技', '商务', '自然', '城市', '美食', '办公', '旅行', '健康', '教育']
+
+// AI 写作模板
+export const WRITING_TEMPLATES = [
+  {
+    id: 'hot-topic',
+    name: '热点解读',
+    icon: '🔥',
+    desc: '追踪热点，深度解读',
+    prompt: '请根据以下热点话题，撰写一篇深度解读文章，包含事件背景、多角度分析、影响评估和个人观点：'
+  },
+  {
+    id: 'tutorial',
+    name: '教程干货',
+    icon: '📚',
+    desc: '步骤清晰，实操性强',
+    prompt: '请根据以下主题，撰写一篇详细的教程文章，要求步骤清晰、配图说明、注意事项完整：'
+  },
+  {
+    id: 'story',
+    name: '故事叙述',
+    icon: '📖',
+    desc: '情感共鸣，引人入胜',
+    prompt: '请根据以下主题，撰写一篇故事性文章，要求有人物、情节、冲突和感悟，引起读者情感共鸣：'
+  },
+  {
+    id: 'list',
+    name: '清单盘点',
+    icon: '📋',
+    desc: '条理清晰，易于阅读',
+    prompt: '请根据以下主题，撰写一篇清单式文章，列出5-10个要点，每个要点有标题和详细说明：'
+  },
+  {
+    id: 'review',
+    name: '测评推荐',
+    icon: '⭐',
+    desc: '客观评测，真实推荐',
+    prompt: '请根据以下产品/服务，撰写一篇客观的测评文章，包含优缺点分析、使用体验和购买建议：'
+  },
+  {
+    id: 'interview',
+    name: '访谈对话',
+    icon: '🎤',
+    desc: '问答形式，观点鲜明',
+    prompt: '请根据以下主题，撰写一篇访谈式文章，以问答形式展开，观点鲜明，内容深入：'
+  },
+]
+
+// 文章风格选项
+export const WRITING_STYLES = [
+  { id: 'professional', name: '专业严谨', desc: '适合行业分析' },
+  { id: 'casual', name: '轻松活泼', desc: '适合生活分享' },
+  { id: 'emotional', name: '情感细腻', desc: '适合故事叙述' },
+  { id: 'humorous', name: '幽默风趣', desc: '适合娱乐内容' },
+]
+
+// 文章长度选项
+export const ARTICLE_LENGTHS = [
+  { id: 'short', name: '短文', words: '500-800字' },
+  { id: 'medium', name: '中等', words: '1000-1500字' },
+  { id: 'long', name: '长文', words: '2000-3000字' },
+]

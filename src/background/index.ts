@@ -135,11 +135,22 @@ async function handleAIRequest(data: { action: string; text: string; options?: R
 
   const prompts: Record<string, string> = {
     'generate-title': `根据以下文章内容，生成10个高点击率的微信公众号标题：\n\n${data.text}`,
-    'rewrite': `润色以下文字，使其更流畅专业：\n\n${data.text}`,
-    'expand': `扩写以下文字，增加更多细节：\n\n${data.text}`,
-    'summarize': `缩写以下文字，保留核心信息：\n\n${data.text}`,
-    'score-title': `对以下标题进行0-100分评分并给出优化建议：\n\n${data.text}`,
-    'generate-outline': `根据主题生成文章大纲：\n\n${data.text}`,
+    'rewrite': `润色以下文字，使其更流畅、专业、有吸引力，保持原意：\n\n${data.text}`,
+    'expand': `扩写以下文字，增加更多细节和论述：\n\n${data.text}`,
+    'summarize': `用2-3句话概括以下文章的核心内容，作为文章摘要：\n\n${data.text}`,
+    'title-score': `请对以下微信公众号标题进行专业评分和分析：
+
+标题：${data.text}
+
+请从以下维度评分（每项0-20分，总分100分）：
+1. 吸引力（是否能引起读者点击欲望）
+2. 清晰度（是否能清楚传达文章主题）
+3. 情感共鸣（是否能引起读者情感反应）
+4. 长度适中（10-30字为佳）
+5. 关键词（是否包含热门/搜索关键词）
+
+请给出总分、各项得分、优点、不足和3个优化建议。`,
+    'generate-outline': `根据主题生成详细的文章大纲：\n\n${data.text}`,
     'generate-article': `根据主题撰写1000-1500字的公众号文章：\n\n${data.text}`,
     'test': '你好，请简短回复确认连接成功'
   }
@@ -198,7 +209,7 @@ async function searchImages(data: { query: string; source: string }) {
   const settings = result.settings as Settings
   
   if (data.source === 'unsplash') {
-    if (!settings?.unsplashKey) throw new Error('请先配置 Unsplash API Key')
+    if (!settings?.unsplashKey) throw new Error('请先配置 Unsplash Access Key')
     const response = await fetch(
       `${IMAGE_APIS.unsplash}?query=${encodeURIComponent(data.query)}&per_page=20`,
       { headers: { 'Authorization': `Client-ID ${settings.unsplashKey}` } }
