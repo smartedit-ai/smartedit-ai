@@ -39,6 +39,22 @@ const IMAGE_APIS = {
 
 const TAVILY_API = 'https://api.tavily.com/search'
 
+interface RSSFeed {
+  id: string
+  name: string
+  url: string
+  category: string
+  enabled: boolean
+}
+
+interface RSSItem {
+  title: string
+  link: string
+  description: string
+  pubDate: string
+  source: string
+}
+
 interface Settings {
   themeColor: string
   aiProvider: string
@@ -51,6 +67,8 @@ interface Settings {
   proxyEnabled: boolean
   proxyUrl: string
   proxyType: 'http' | 'socks5' | 'custom'
+  rssFeeds: RSSFeed[]
+  rssRefreshInterval: number
 }
 
 // 初始化
@@ -110,6 +128,18 @@ async function handleMessage(message: { type: string; data?: unknown }, sendResp
         const searchResult = await tavilySearch(message.data as { query: string; searchDepth?: string; maxResults?: number })
         console.log('[Tavily] 搜索结果:', searchResult)
         sendResponse({ success: true, data: searchResult })
+        break
+      case 'FETCH_RSS':
+        console.log('[RSS] 收到获取请求')
+        const rssItems = await fetchAllRSSFeeds()
+        console.log('[RSS] 获取到', rssItems.length, '条内容')
+        sendResponse({ success: true, data: rssItems })
+        break
+      case 'FETCH_SINGLE_RSS':
+        const feedData = message.data as { url: string; name: string }
+        console.log('[RSS] 获取单个源:', feedData.name)
+        const singleItems = await fetchRSSFeed(feedData.url, feedData.name)
+        sendResponse({ success: true, data: singleItems })
         break
       case 'GET_SETTINGS':
         const settings = await chrome.storage.sync.get('settings')
@@ -285,6 +315,172 @@ async function tavilySearch(data: { query: string; searchDepth?: string; maxResu
       publishedDate: item.published_date
     }))
   }
+}
+
+// 辅助函数：从 XML 中提取标签内容（使用正则表达式，因为 Service Worker 中没有 DOMParser）
+function extractTagContent(xml: string, tagName: string): string {
+  // 匹配 <tagName>content</tagName> 或 <tagName><![CDATA[content]]></tagName>
+  const regex = new RegExp(`<${tagName}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tagName}>`, 'i')
+  const match = xml.match(regex)
+  if (match) {
+    return match[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim()
+  }
+  return ''
+}
+
+// 辅助函数：从 XML 中提取属性值
+function extractAttrValue(xml: string, tagName: string, attrName: string): string {
+  const regex = new RegExp(`<${tagName}[^>]*${attrName}=["']([^"']+)["'][^>]*>`, 'i')
+  const match = xml.match(regex)
+  return match ? match[1] : ''
+}
+
+// 辅助函数：提取所有匹配的标签块
+function extractAllTags(xml: string, tagName: string): string[] {
+  const regex = new RegExp(`<${tagName}[^>]*>[\\s\\S]*?</${tagName}>`, 'gi')
+  return xml.match(regex) || []
+}
+
+// RSS 获取和解析
+async function fetchRSSFeed(feedUrl: string, feedName: string): Promise<RSSItem[]> {
+  try {
+    // 使用 CORS 代理获取 RSS（因为大多数 RSS 源不支持跨域）
+    const corsProxies = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(feedUrl)}`,
+      `https://corsproxy.io/?${encodeURIComponent(feedUrl)}`,
+    ]
+    
+    let xmlText = ''
+    for (const proxyUrl of corsProxies) {
+      try {
+        const response = await fetch(proxyUrl, { 
+          headers: { 'Accept': 'application/rss+xml, application/xml, text/xml, application/json' }
+        })
+        if (response.ok) {
+          xmlText = await response.text()
+          break
+        }
+      } catch {
+        continue
+      }
+    }
+    
+    if (!xmlText) {
+      throw new Error('无法获取 RSS 内容')
+    }
+    
+    const items: RSSItem[] = []
+    
+    // 检查是否是 JSON 格式（如知乎日报）
+    if (xmlText.trim().startsWith('{') || xmlText.trim().startsWith('[')) {
+      try {
+        const jsonData = JSON.parse(xmlText)
+        // 知乎日报格式
+        if (jsonData.stories) {
+          jsonData.stories.forEach((story: { title: string; url?: string; id?: number }) => {
+            items.push({
+              title: story.title,
+              link: story.url || `https://daily.zhihu.com/story/${story.id}`,
+              description: '',
+              pubDate: new Date().toISOString(),
+              source: feedName
+            })
+          })
+        }
+        // 通用 JSON 数组格式
+        else if (Array.isArray(jsonData)) {
+          jsonData.slice(0, 20).forEach((item: { title?: string; name?: string; link?: string; url?: string; description?: string; summary?: string }) => {
+            if (item.title || item.name) {
+              items.push({
+                title: item.title || item.name || '',
+                link: item.link || item.url || '',
+                description: item.description || item.summary || '',
+                pubDate: new Date().toISOString(),
+                source: feedName
+              })
+            }
+          })
+        }
+        return items.slice(0, 20)
+      } catch {
+        // 不是有效 JSON，继续尝试 XML 解析
+      }
+    }
+    
+    // 尝试解析 RSS 2.0 格式
+    const rssItems = extractAllTags(xmlText, 'item')
+    if (rssItems.length > 0) {
+      rssItems.forEach((itemXml) => {
+        const title = extractTagContent(itemXml, 'title')
+        const link = extractTagContent(itemXml, 'link')
+        const description = extractTagContent(itemXml, 'description')
+        const pubDate = extractTagContent(itemXml, 'pubDate')
+        
+        if (title && link) {
+          items.push({
+            title: title.replace(/<[^>]*>/g, '').trim(),
+            link,
+            description: description.replace(/<[^>]*>/g, '').substring(0, 200),
+            pubDate,
+            source: feedName
+          })
+        }
+      })
+    }
+    
+    // 尝试解析 Atom 格式
+    if (items.length === 0) {
+      const atomEntries = extractAllTags(xmlText, 'entry')
+      atomEntries.forEach((entryXml) => {
+        const title = extractTagContent(entryXml, 'title')
+        const link = extractAttrValue(entryXml, 'link', 'href') || extractTagContent(entryXml, 'link')
+        const summary = extractTagContent(entryXml, 'summary') || extractTagContent(entryXml, 'content')
+        const published = extractTagContent(entryXml, 'published') || extractTagContent(entryXml, 'updated')
+        
+        if (title && link) {
+          items.push({
+            title: title.replace(/<[^>]*>/g, '').trim(),
+            link,
+            description: summary.replace(/<[^>]*>/g, '').substring(0, 200),
+            pubDate: published,
+            source: feedName
+          })
+        }
+      })
+    }
+    
+    return items.slice(0, 20) // 每个源最多返回 20 条
+  } catch (error) {
+    console.error(`[RSS] 获取 ${feedName} 失败:`, error)
+    return []
+  }
+}
+
+// 获取所有启用的 RSS 源内容
+async function fetchAllRSSFeeds(): Promise<RSSItem[]> {
+  const result = await chrome.storage.sync.get('settings')
+  const settings = result.settings as Settings
+  
+  if (!settings?.rssFeeds || settings.rssFeeds.length === 0) {
+    return []
+  }
+  
+  const enabledFeeds = settings.rssFeeds.filter(f => f.enabled)
+  
+  // 并行获取所有 RSS 源
+  const allItemsArrays = await Promise.all(
+    enabledFeeds.map(feed => fetchRSSFeed(feed.url, feed.name))
+  )
+  
+  // 合并并按时间排序
+  const allItems = allItemsArrays.flat()
+  allItems.sort((a, b) => {
+    const dateA = new Date(a.pubDate).getTime() || 0
+    const dateB = new Date(b.pubDate).getTime() || 0
+    return dateB - dateA
+  })
+  
+  return allItems.slice(0, 50) // 最多返回 50 条
 }
 
 console.log('智编助手 Background 已启动')

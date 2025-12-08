@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
 
+// RSS 订阅源接口
+interface RSSFeed {
+  id: string
+  name: string
+  url: string
+  category: string
+  enabled: boolean
+  lastFetched?: string
+}
+
 interface Settings {
   themeColor: string
   showFloatingToolbar: boolean
@@ -16,7 +26,18 @@ interface Settings {
   proxyEnabled: boolean
   proxyUrl: string
   proxyType: 'http' | 'socks5' | 'custom'
+  // RSS 订阅设置
+  rssFeeds: RSSFeed[]
+  rssRefreshInterval: number // 刷新间隔（分钟）
 }
+
+// 预设 RSS 源
+const DEFAULT_RSS_FEEDS: RSSFeed[] = [
+  { id: '1', name: '少数派', url: 'https://sspai.com/feed', category: '科技', enabled: true },
+  { id: '2', name: '36氪', url: 'https://36kr.com/feed', category: '科技', enabled: false },
+  { id: '3', name: '虎嗅', url: 'https://www.huxiu.com/rss/0.xml', category: '科技', enabled: false },
+  { id: '4', name: '知乎日报', url: 'https://daily.zhihu.com/api/4/news/latest', category: '综合', enabled: false },
+]
 
 const defaultSettings: Settings = {
   themeColor: '#07C160',
@@ -34,6 +55,9 @@ const defaultSettings: Settings = {
   proxyEnabled: false,
   proxyUrl: '',
   proxyType: 'http',
+  // RSS 订阅设置
+  rssFeeds: DEFAULT_RSS_FEEDS,
+  rssRefreshInterval: 30,
 }
 
 // AI 服务提供商配置
@@ -337,6 +361,7 @@ proxyUrl: ${config.proxyUrl || ''}
     { id: 'general', icon: '⚙️', label: '通用设置' },
     { id: 'ai', icon: '✨', label: 'AI 配置' },
     { id: 'search', icon: '🔍', label: '热点搜索' },
+    { id: 'rss', icon: '📰', label: 'RSS 订阅' },
     { id: 'images', icon: '🖼️', label: '图片服务' },
     { id: 'proxy', icon: '🌐', label: '网络代理' },
     { id: 'backup', icon: '💾', label: '备份恢复' },
@@ -665,6 +690,239 @@ proxyUrl: ${config.proxyUrl || ''}
                     <li>• Tavily 提供每月 1000 次免费搜索额度</li>
                     <li>• 搜索结果将自动整合到 AI 写作流程中</li>
                     <li>• API Key 仅存储在本地浏览器中，不会上传到任何服务器</li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* RSS 订阅管理 */}
+          {activeSection === 'rss' && (
+            <section>
+              <h2 className="text-xl font-semibold text-gray-800 mb-6 pb-4 border-b border-gray-200">RSS 订阅管理</h2>
+              <div className="space-y-6">
+                {/* 刷新间隔设置 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                        <span className="text-white text-lg">⏱️</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-800">自动刷新间隔</div>
+                        <div className="text-xs text-gray-500">设置 RSS 源自动更新的时间间隔</div>
+                      </div>
+                    </div>
+                    <select
+                      value={settings.rssRefreshInterval}
+                      onChange={(e) => setSettings({ ...settings, rssRefreshInterval: Number(e.target.value) })}
+                      className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value={15}>15 分钟</option>
+                      <option value={30}>30 分钟</option>
+                      <option value={60}>1 小时</option>
+                      <option value={120}>2 小时</option>
+                      <option value={360}>6 小时</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 添加新订阅源 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-lg">➕</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">添加订阅源</div>
+                      <div className="text-xs text-gray-500">输入 RSS 源地址添加新订阅</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      id="newRssName"
+                      placeholder="订阅名称"
+                      className="w-32 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <input
+                      type="text"
+                      id="newRssUrl"
+                      placeholder="RSS 地址 (https://example.com/feed)"
+                      className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    />
+                    <select
+                      id="newRssCategory"
+                      className="w-24 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <option value="科技">科技</option>
+                      <option value="财经">财经</option>
+                      <option value="生活">生活</option>
+                      <option value="综合">综合</option>
+                      <option value="其他">其他</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        const nameInput = document.getElementById('newRssName') as HTMLInputElement
+                        const urlInput = document.getElementById('newRssUrl') as HTMLInputElement
+                        const categorySelect = document.getElementById('newRssCategory') as HTMLSelectElement
+                        const name = nameInput?.value.trim()
+                        const url = urlInput?.value.trim()
+                        const category = categorySelect?.value || '其他'
+                        
+                        if (!name || !url) {
+                          alert('请填写订阅名称和地址')
+                          return
+                        }
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                          alert('请输入有效的 RSS 地址')
+                          return
+                        }
+                        
+                        const newFeed: RSSFeed = {
+                          id: Date.now().toString(),
+                          name,
+                          url,
+                          category,
+                          enabled: true
+                        }
+                        setSettings({ ...settings, rssFeeds: [...settings.rssFeeds, newFeed] })
+                        nameInput.value = ''
+                        urlInput.value = ''
+                        alert('订阅源添加成功！')
+                      }}
+                      className="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark transition-colors"
+                    >
+                      添加
+                    </button>
+                  </div>
+                </div>
+
+                {/* 订阅源列表 */}
+                <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
+                      <span className="text-white text-lg">📰</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-800">订阅源列表</div>
+                      <div className="text-xs text-gray-500">管理已添加的 RSS 订阅源（共 {settings.rssFeeds.length} 个）</div>
+                    </div>
+                  </div>
+                  
+                  {settings.rssFeeds.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <div className="text-4xl mb-2">📭</div>
+                      <div>暂无订阅源，请添加</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {settings.rssFeeds.map((feed) => (
+                        <div
+                          key={feed.id}
+                          className={`flex items-center justify-between p-3 bg-white rounded-lg border ${
+                            feed.enabled ? 'border-gray-200' : 'border-gray-100 opacity-60'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                const updatedFeeds = settings.rssFeeds.map(f =>
+                                  f.id === feed.id ? { ...f, enabled: !f.enabled } : f
+                                )
+                                setSettings({ ...settings, rssFeeds: updatedFeeds })
+                              }}
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                                feed.enabled
+                                  ? 'bg-primary border-primary text-white'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {feed.enabled && <span className="text-xs">✓</span>}
+                            </button>
+                            <div>
+                              <div className="font-medium text-gray-800 text-sm">{feed.name}</div>
+                              <div className="text-xs text-gray-400 truncate max-w-xs">{feed.url}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                              {feed.category}
+                            </span>
+                            <button
+                              onClick={() => {
+                                if (confirm(`确定删除订阅源「${feed.name}」吗？`)) {
+                                  const updatedFeeds = settings.rssFeeds.filter(f => f.id !== feed.id)
+                                  setSettings({ ...settings, rssFeeds: updatedFeeds })
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              title="删除"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 推荐订阅源 */}
+                <div className="p-5 bg-blue-50 rounded-xl border border-blue-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-blue-500">💡</span>
+                    <span className="text-sm font-medium text-blue-700">推荐订阅源</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { name: '少数派', url: 'https://sspai.com/feed', category: '科技' },
+                      { name: '36氪', url: 'https://36kr.com/feed', category: '科技' },
+                      { name: '虎嗅', url: 'https://www.huxiu.com/rss/0.xml', category: '科技' },
+                      { name: 'InfoQ', url: 'https://www.infoq.cn/feed', category: '技术' },
+                      { name: '爱范儿', url: 'https://www.ifanr.com/feed', category: '科技' },
+                      { name: '极客公园', url: 'https://www.geekpark.net/rss', category: '科技' },
+                    ].map((rec) => {
+                      const exists = settings.rssFeeds.some(f => f.url === rec.url)
+                      return (
+                        <button
+                          key={rec.url}
+                          disabled={exists}
+                          onClick={() => {
+                            const newFeed: RSSFeed = {
+                              id: Date.now().toString(),
+                              name: rec.name,
+                              url: rec.url,
+                              category: rec.category,
+                              enabled: true
+                            }
+                            setSettings({ ...settings, rssFeeds: [...settings.rssFeeds, newFeed] })
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-left text-sm transition-colors ${
+                            exists
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-white hover:bg-blue-100 text-gray-700'
+                          }`}
+                        >
+                          <span>{rec.name}</span>
+                          <span className="text-xs">{exists ? '已添加' : '+ 添加'}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 使用说明 */}
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-amber-500">📖</span>
+                    <span className="text-sm font-medium text-amber-700">使用说明</span>
+                  </div>
+                  <ul className="text-xs text-amber-600 space-y-1">
+                    <li>• 添加 RSS 订阅源后，可在侧边栏「RSS」模块浏览最新文章</li>
+                    <li>• 点击文章可查看详情，支持一键插入或引用到编辑器</li>
+                    <li>• 启用/禁用订阅源可控制是否在列表中显示</li>
+                    <li>• 部分网站可能因跨域限制无法直接获取，建议使用代理</li>
                   </ul>
                 </div>
               </div>

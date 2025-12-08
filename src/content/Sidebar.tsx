@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NAV_ITEMS } from './constants'
 import { TemplatePanel, MarkdownPanel, AIWritingPanel, ImagePanel, ToolPanel } from './components'
+import RSSPanel from './components/RSSPanel'
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -100,6 +101,10 @@ export default function Sidebar() {
 
             {activeNav === 'tool' && (
               <ToolPanel themeColor={themeColor} />
+            )}
+
+            {activeNav === 'rss' && (
+              <RSSPanel themeColor={themeColor} />
             )}
           </div>
         </div>
