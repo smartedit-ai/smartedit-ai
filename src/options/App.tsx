@@ -251,7 +251,7 @@ autoInsertStyle: ${config.autoInsertStyle}
 showSelectionToolbar: ${config.showSelectionToolbar}
 
 ## AI 配置
-# AI 服务提供商（openai/deepseek/moonshot/qwen/zhipu/custom）
+# AI 服务提供商（openai/deepseek/moonshot/aliyun/siliconflow/zhipu/custom）
 aiProvider: ${config.aiProvider || 'openai'}
 
 # API Key（必填）
@@ -287,8 +287,35 @@ proxyType: ${config.proxyType || 'http'}
 # 代理地址（例如：http://127.0.0.1:7890）
 proxyUrl: ${config.proxyUrl || ''}
 
+## Obsidian 集成配置
+# 需要安装 Obsidian Local REST API 插件
+# 插件地址：https://github.com/coddingtonbear/obsidian-local-rest-api
+
+# 启用 Obsidian 集成（true/false）
+obsidian_enabled: ${config.obsidian?.enabled || false}
+
+# Obsidian REST API 地址（默认：https://localhost:27124）
+obsidian_apiUrl: ${config.obsidian?.apiUrl || 'https://localhost:27124'}
+
+# Obsidian REST API Key（在 Obsidian 插件设置中获取）
+obsidian_apiKey: ${config.obsidian?.apiKey || 'YOUR_OBSIDIAN_API_KEY'}
+
+# 默认保存路径（Vault 中的文件夹路径）
+obsidian_defaultPath: ${config.obsidian?.defaultPath || '公众号'}
+
+# 自动同步（true/false）
+obsidian_autoSync: ${config.obsidian?.autoSync || false}
+
+## RSS 订阅配置
+# RSS 刷新间隔（分钟）
+rssRefreshInterval: ${config.rssRefreshInterval || 30}
+
+# RSS 订阅源列表（JSON 格式）
+# 格式：[{"id":"1","name":"名称","url":"RSS地址","category":"分类","enabled":true}]
+rssFeeds: ${JSON.stringify(config.rssFeeds || DEFAULT_RSS_FEEDS)}
+
 # ============================================================
-# 配置文件版本：1.0
+# 配置文件版本：1.1
 # 生成时间：${new Date().toLocaleString()}
 `
   }
@@ -321,27 +348,73 @@ proxyUrl: ${config.proxyUrl || ''}
 
   // 解析配置文件
   const parseConfigFile = (content: string): Partial<Settings> => {
-    const config: Record<string, string | boolean> = {}
+    const config: Record<string, unknown> = {}
+    const obsidianConfig: Record<string, unknown> = {}
     const lines = content.split('\n')
     
     for (const line of lines) {
       // 跳过注释和空行
       if (line.startsWith('#') || line.trim() === '') continue
       
-      const match = line.match(/^(\w+):\s*(.*)$/)
+      const match = line.match(/^([\w_]+):\s*(.*)$/)
       if (match) {
         const [, key, value] = match
         const trimmedValue = value.trim()
+        
+        // 忽略未填写的占位符
+        if (trimmedValue.startsWith('YOUR_') || trimmedValue === '') continue
+        
+        // 处理 Obsidian 配置（以 obsidian_ 开头）
+        if (key.startsWith('obsidian_')) {
+          const obsidianKey = key.replace('obsidian_', '')
+          if (trimmedValue === 'true') {
+            obsidianConfig[obsidianKey] = true
+          } else if (trimmedValue === 'false') {
+            obsidianConfig[obsidianKey] = false
+          } else {
+            obsidianConfig[obsidianKey] = trimmedValue
+          }
+          continue
+        }
+        
+        // 处理 RSS 订阅源（JSON 格式）
+        if (key === 'rssFeeds') {
+          try {
+            config[key] = JSON.parse(trimmedValue)
+          } catch {
+            console.warn('RSS 配置解析失败，使用默认值')
+          }
+          continue
+        }
+        
+        // 处理数字类型
+        if (key === 'rssRefreshInterval') {
+          const num = parseInt(trimmedValue)
+          if (!isNaN(num)) {
+            config[key] = num
+          }
+          continue
+        }
         
         // 转换布尔值
         if (trimmedValue === 'true') {
           config[key] = true
         } else if (trimmedValue === 'false') {
           config[key] = false
-        } else if (!trimmedValue.startsWith('YOUR_')) {
-          // 忽略未填写的占位符
+        } else {
           config[key] = trimmedValue
         }
+      }
+    }
+    
+    // 如果有 Obsidian 配置，合并到结果中
+    if (Object.keys(obsidianConfig).length > 0) {
+      config.obsidian = {
+        enabled: obsidianConfig.enabled ?? false,
+        apiUrl: obsidianConfig.apiUrl ?? 'https://localhost:27124',
+        apiKey: obsidianConfig.apiKey ?? '',
+        defaultPath: obsidianConfig.defaultPath ?? '公众号',
+        autoSync: obsidianConfig.autoSync ?? false
       }
     }
     

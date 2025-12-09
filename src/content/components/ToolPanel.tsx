@@ -24,15 +24,22 @@ const SPECIAL_FEATURES = [
   { id: 'violation-check', icon: '🛡️', label: '违规检测', color: 'from-green-400 to-green-500', desc: '敏感词检查' },
   { id: 'ai-summary', icon: '📝', label: 'AI摘要', color: 'from-purple-400 to-purple-500', desc: '生成文章摘要' },
   { id: 'ai-polish', icon: '✨', label: 'AI润色', color: 'from-blue-400 to-blue-500', desc: '优化文章表达' },
+  { id: 'ai-outline', icon: '📋', label: 'AI大纲', color: 'from-indigo-400 to-indigo-500', desc: '生成文章大纲' },
+  { id: 'ai-continue', icon: '➡️', label: 'AI续写', color: 'from-teal-400 to-teal-500', desc: '智能续写内容' },
+  { id: 'ai-translate', icon: '🌐', label: 'AI翻译', color: 'from-rose-400 to-rose-500', desc: '中英互译' },
+  { id: 'ai-rewrite', icon: '🔄', label: '改写风格', color: 'from-orange-400 to-orange-500', desc: '换种方式表达' },
 ]
 
 // 敏感词库（扩展版）
 const SENSITIVE_WORDS = {
-  illegal: ['赌博', '色情', '暴力', '毒品', '枪支', '诈骗', '传销', '洗钱', '走私'],
-  political: ['政变', '暴动', '分裂'],
-  medical: ['包治百病', '根治', '祖传秘方', '无效退款', '药到病除'],
-  exaggerate: ['第一', '最好', '最强', '绝对', '100%', '永久', '万能'],
-  finance: ['稳赚不赔', '高额回报', '零风险', '内幕消息', '暴富'],
+  illegal: ['赌博', '色情', '暴力', '毒品', '枪支', '诈骗', '传销', '洗钱', '走私', '黄赌毒', '博彩', '赌场', '六合彩', '私彩'],
+  political: ['政变', '暴动', '分裂', '颠覆', '反动', '邪教', '法轮'],
+  medical: ['包治百病', '根治', '祖传秘方', '无效退款', '药到病除', '特效药', '神药', '癌症克星', '糖尿病克星', '一针见效', '立竿见影', '无副作用', '纯天然无害'],
+  exaggerate: ['第一', '最好', '最强', '绝对', '100%', '永久', '万能', '唯一', '首选', '顶级', '极致', '史上最', '全网最', '独家', '限时', '仅此一次', '错过不再'],
+  finance: ['稳赚不赔', '高额回报', '零风险', '内幕消息', '暴富', '躺赚', '日入过万', '月入百万', '财务自由', '一夜暴富', '稳定收益', '保本保息', '翻倍', '原始股'],
+  privacy: ['身份证号', '银行卡号', '手机号码', '家庭住址', '个人隐私'],
+  copyright: ['盗版', '破解版', '免费下载', '资源分享', '网盘链接', '百度云', '迅雷下载'],
+  vulgar: ['屌丝', '逼格', '装逼', '牛逼', '傻逼', '他妈的', '卧槽'],
 }
 
 export default function ToolPanel({ themeColor }: ToolPanelProps) {
@@ -176,11 +183,14 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
             const found = words.filter(w => content.includes(w))
             if (found.length > 0) {
               const categoryNames: Record<string, string> = {
-                illegal: '违法违规',
-                political: '政治敏感',
-                medical: '医疗夸大',
-                exaggerate: '绝对化用语',
-                finance: '金融风险',
+                illegal: '🚫 违法违规',
+                political: '⚠️ 政治敏感',
+                medical: '💊 医疗夸大',
+                exaggerate: '📢 绝对化用语',
+                finance: '💰 金融风险',
+                privacy: '🔒 隐私信息',
+                copyright: '©️ 版权风险',
+                vulgar: '🤬 低俗用语',
               }
               results.push({ category: categoryNames[category] || category, words: found })
             }
@@ -249,6 +259,157 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
             }
           } catch {
             alert('AI 润色失败，请检查 API 配置')
+          }
+          setIsLoading(false)
+          setLoadingTool('')
+        } else {
+          alert('请先打开文章编辑页面')
+        }
+        break
+
+      case 'ai-outline':
+        // AI 大纲生成
+        if (editor) {
+          const topic = prompt('请输入文章主题或关键词：')
+          if (!topic) return
+          
+          setIsLoading(true)
+          setLoadingTool('ai-outline')
+          try {
+            const result = await aiRequest('outline', topic)
+            if (result) {
+              const useOutline = confirm(`📋 AI 生成大纲\n\n${result}\n\n是否插入到编辑器？`)
+              if (useOutline) {
+                // 将大纲转换为 HTML 格式
+                const outlineHtml = result.split('\n').map((line: string) => {
+                  if (line.match(/^#+\s/)) {
+                    const level = line.match(/^#+/)?.[0].length || 1
+                    const text = line.replace(/^#+\s*/, '')
+                    return `<h${Math.min(level + 1, 4)} style="font-size:${20 - level * 2}px;font-weight:bold;color:#333;margin:16px 0 8px">${text}</h${Math.min(level + 1, 4)}>`
+                  } else if (line.match(/^[-*]\s/)) {
+                    return `<p style="margin:8px 0;padding-left:20px">• ${line.replace(/^[-*]\s*/, '')}</p>`
+                  } else if (line.match(/^\d+\.\s/)) {
+                    return `<p style="margin:8px 0;padding-left:20px">${line}</p>`
+                  }
+                  return line ? `<p style="margin:8px 0">${line}</p>` : ''
+                }).join('')
+                editor.innerHTML = outlineHtml + '<p><br></p>' + editor.innerHTML
+                alert('大纲已插入文章开头！')
+              }
+            }
+          } catch {
+            alert('AI 大纲生成失败，请检查 API 配置')
+          }
+          setIsLoading(false)
+          setLoadingTool('')
+        } else {
+          alert('请先打开文章编辑页面')
+        }
+        break
+
+      case 'ai-continue':
+        // AI 续写
+        if (editor) {
+          const content = editor.innerText
+          if (content.length < 20) {
+            alert('请先输入一些内容，AI 将基于现有内容续写')
+            return
+          }
+          
+          setIsLoading(true)
+          setLoadingTool('ai-continue')
+          try {
+            const result = await aiRequest('continue', content.slice(-1500)) // 取最后1500字作为上下文
+            if (result) {
+              const useContinue = confirm(`➡️ AI 续写内容\n\n${result.slice(0, 500)}${result.length > 500 ? '...' : ''}\n\n是否追加到文章末尾？`)
+              if (useContinue) {
+                editor.innerHTML += `<p style="margin:16px 0;line-height:1.8">${result.replace(/\n/g, '</p><p style="margin:16px 0;line-height:1.8">')}</p>`
+                alert('续写内容已追加！')
+              }
+            }
+          } catch {
+            alert('AI 续写失败，请检查 API 配置')
+          }
+          setIsLoading(false)
+          setLoadingTool('')
+        } else {
+          alert('请先打开文章编辑页面')
+        }
+        break
+
+      case 'ai-translate':
+        // AI 翻译
+        if (editor) {
+          const selection = window.getSelection()
+          const selectedText = selection?.toString().trim()
+          
+          if (!selectedText) {
+            alert('请先选中要翻译的文字')
+            return
+          }
+          
+          // 检测语言方向
+          const isChinese = /[\u4e00-\u9fa5]/.test(selectedText)
+          const direction = isChinese ? '中译英' : '英译中'
+          
+          setIsLoading(true)
+          setLoadingTool('ai-translate')
+          try {
+            const result = await aiRequest('translate', `${direction}：${selectedText}`)
+            if (result) {
+              const action = confirm(`🌐 AI 翻译 (${direction})\n\n原文：${selectedText.slice(0, 100)}${selectedText.length > 100 ? '...' : ''}\n\n译文：${result}\n\n点击「确定」替换原文，「取消」仅复制译文`)
+              if (action) {
+                document.execCommand('insertText', false, result)
+                alert('已替换为译文！')
+              } else {
+                navigator.clipboard.writeText(result)
+                alert('译文已复制到剪贴板！')
+              }
+            }
+          } catch {
+            alert('AI 翻译失败，请检查 API 配置')
+          }
+          setIsLoading(false)
+          setLoadingTool('')
+        } else {
+          alert('请先打开文章编辑页面')
+        }
+        break
+
+      case 'ai-rewrite':
+        // 改写风格
+        if (editor) {
+          const selection = window.getSelection()
+          const selectedText = selection?.toString().trim()
+          
+          if (!selectedText) {
+            alert('请先选中要改写的文字')
+            return
+          }
+          
+          const styles = ['正式商务', '轻松活泼', '幽默风趣', '文艺抒情', '简洁精炼']
+          const styleChoice = prompt(`请选择改写风格（输入数字）：\n\n1. 正式商务\n2. 轻松活泼\n3. 幽默风趣\n4. 文艺抒情\n5. 简洁精炼`)
+          
+          if (!styleChoice || !['1', '2', '3', '4', '5'].includes(styleChoice)) {
+            alert('请输入有效的数字 1-5')
+            return
+          }
+          
+          const targetStyle = styles[parseInt(styleChoice) - 1]
+          
+          setIsLoading(true)
+          setLoadingTool('ai-rewrite')
+          try {
+            const result = await aiRequest('style-rewrite', `将以下内容改写为${targetStyle}风格：\n\n${selectedText}`)
+            if (result) {
+              const useRewrite = confirm(`🔄 ${targetStyle}风格改写\n\n原文：${selectedText.slice(0, 100)}${selectedText.length > 100 ? '...' : ''}\n\n改写后：${result}\n\n是否替换原文？`)
+              if (useRewrite) {
+                document.execCommand('insertText', false, result)
+                alert('已替换为改写内容！')
+              }
+            }
+          } catch {
+            alert('AI 改写失败，请检查 API 配置')
           }
           setIsLoading(false)
           setLoadingTool('')

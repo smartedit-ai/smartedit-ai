@@ -91,18 +91,216 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 function createContextMenus() {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({ id: 'smartedit-rewrite', title: '✨ AI 改写', contexts: ['selection'] })
-    chrome.contextMenus.create({ id: 'smartedit-expand', title: '📝 AI 扩写', contexts: ['selection'] })
-    chrome.contextMenus.create({ id: 'smartedit-summarize', title: '📋 AI 缩写', contexts: ['selection'] })
+    // 一级菜单：工具名称
+    chrome.contextMenus.create({
+      id: 'smartedit-root',
+      title: '智编助手',
+      contexts: ['all']
+    })
+
+    // 二级菜单分组：AI 写作
+    chrome.contextMenus.create({
+      id: 'smartedit-ai-group',
+      parentId: 'smartedit-root',
+      title: '✨ AI 写作',
+      contexts: ['all']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-rewrite',
+      parentId: 'smartedit-ai-group',
+      title: '润色优化',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-expand',
+      parentId: 'smartedit-ai-group',
+      title: '扩写内容',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-summarize',
+      parentId: 'smartedit-ai-group',
+      title: '缩写精简',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-translate',
+      parentId: 'smartedit-ai-group',
+      title: '中英互译',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-style-rewrite',
+      parentId: 'smartedit-ai-group',
+      title: '改写风格',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-continue',
+      parentId: 'smartedit-ai-group',
+      title: '续写内容',
+      contexts: ['selection']
+    })
+
+    // 二级菜单分组：标题工具
+    chrome.contextMenus.create({
+      id: 'smartedit-title-group',
+      parentId: 'smartedit-root',
+      title: '📊 标题工具',
+      contexts: ['all']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-title-score',
+      parentId: 'smartedit-title-group',
+      title: '标题评分',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-generate-title',
+      parentId: 'smartedit-title-group',
+      title: '生成标题',
+      contexts: ['selection']
+    })
+
+    // 二级菜单分组：内容工具
+    chrome.contextMenus.create({
+      id: 'smartedit-content-group',
+      parentId: 'smartedit-root',
+      title: '📝 内容工具',
+      contexts: ['all']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-summary',
+      parentId: 'smartedit-content-group',
+      title: '生成摘要',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-outline',
+      parentId: 'smartedit-content-group',
+      title: '生成大纲',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-violation-check',
+      parentId: 'smartedit-content-group',
+      title: '违规检测',
+      contexts: ['selection']
+    })
+
+    // 二级菜单分组：收藏工具
+    chrome.contextMenus.create({
+      id: 'smartedit-collect-group',
+      parentId: 'smartedit-root',
+      title: '💾 收藏工具',
+      contexts: ['all']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-collect-text',
+      parentId: 'smartedit-collect-group',
+      title: '收藏文字',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-collect-image',
+      parentId: 'smartedit-collect-group',
+      title: '收藏图片',
+      contexts: ['image']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-collect-link',
+      parentId: 'smartedit-collect-group',
+      title: '收藏链接',
+      contexts: ['link']
+    })
+
+    // 二级菜单分组：快捷操作
+    chrome.contextMenus.create({
+      id: 'smartedit-quick-group',
+      parentId: 'smartedit-root',
+      title: '🔧 快捷操作',
+      contexts: ['all']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-copy-md',
+      parentId: 'smartedit-quick-group',
+      title: '复制为 Markdown',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-word-count',
+      parentId: 'smartedit-quick-group',
+      title: '字数统计',
+      contexts: ['selection']
+    })
+    chrome.contextMenus.create({
+      id: 'smartedit-gen-qrcode',
+      parentId: 'smartedit-quick-group',
+      title: '生成二维码',
+      contexts: ['selection', 'link']
+    })
+
+    // 分隔线
+    chrome.contextMenus.create({
+      id: 'smartedit-separator',
+      parentId: 'smartedit-root',
+      type: 'separator',
+      contexts: ['all']
+    })
+
+    // 打开设置
+    chrome.contextMenus.create({
+      id: 'smartedit-settings',
+      parentId: 'smartedit-root',
+      title: '⚙️ 打开设置',
+      contexts: ['all']
+    })
+
+    // 打开侧边栏
+    chrome.contextMenus.create({
+      id: 'smartedit-sidebar',
+      parentId: 'smartedit-root',
+      title: '📌 打开侧边栏',
+      contexts: ['all']
+    })
   })
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId.toString().startsWith('smartedit-') && tab?.id) {
+  const menuId = info.menuItemId.toString()
+  
+  // 处理打开设置
+  if (menuId === 'smartedit-settings') {
+    chrome.runtime.openOptionsPage()
+    return
+  }
+  
+  // 处理打开侧边栏
+  if (menuId === 'smartedit-sidebar') {
+    if (tab?.id) {
+      chrome.tabs.sendMessage(tab.id, {
+        type: 'TOGGLE_SIDEBAR'
+      })
+    }
+    return
+  }
+  
+  // 其他操作需要发送到 content script
+  if (menuId.startsWith('smartedit-') && tab?.id) {
+    const action = menuId.replace('smartedit-', '')
+    
+    // 跳过分组菜单
+    if (action.endsWith('-group') || action === 'root' || action === 'separator') {
+      return
+    }
+    
     chrome.tabs.sendMessage(tab.id, {
       type: 'CONTEXT_MENU_ACTION',
-      action: info.menuItemId.toString().replace('smartedit-', ''),
-      text: info.selectionText || ''
+      action: action,
+      text: info.selectionText || '',
+      linkUrl: info.linkUrl || '',
+      srcUrl: info.srcUrl || '',
+      pageUrl: info.pageUrl || ''
     })
   }
 })
@@ -182,6 +380,29 @@ async function handleAIRequest(data: { action: string; text: string; options?: R
 请给出总分、各项得分、优点、不足和3个优化建议。`,
     'generate-outline': `根据主题生成详细的文章大纲：\n\n${data.text}`,
     'generate-article': `根据主题撰写1000-1500字的公众号文章：\n\n${data.text}`,
+    'outline': `请根据以下主题，生成一个详细的微信公众号文章大纲。要求：
+1. 包含引人入胜的开头
+2. 3-5个主要章节，每个章节有2-3个要点
+3. 有力的结尾和行动号召
+
+主题：${data.text}
+
+请用 Markdown 格式输出大纲。`,
+    'continue': `请根据以下文章内容，自然地续写300-500字。要求：
+1. 保持与原文一致的风格和语气
+2. 内容连贯，逻辑通顺
+3. 不要重复已有内容
+
+原文：
+${data.text}
+
+请直接输出续写内容，不要加任何说明。`,
+    'translate': `${data.text}
+
+请直接输出翻译结果，不要加任何说明或解释。保持原文的格式和段落结构。`,
+    'style-rewrite': `${data.text}
+
+请直接输出改写后的内容，不要加任何说明。保持原文的核心意思，但用指定的风格重新表达。`,
     'test': '你好，请简短回复确认连接成功'
   }
 
