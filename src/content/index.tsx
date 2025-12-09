@@ -31,13 +31,24 @@ function registerSidebar(ref: typeof sidebarRef) {
   sidebarRef = ref
 }
 
-if (!window.location.hostname.includes('mp.weixin.qq.com')) {
-  console.log('智编助手: 非微信公众平台页面')
+// 排除特殊页面（扩展页面、浏览器内置页面等）
+const isExcludedPage = () => {
+  const url = window.location.href
+  return url.startsWith('chrome://') || 
+         url.startsWith('chrome-extension://') || 
+         url.startsWith('edge://') ||
+         url.startsWith('about:') ||
+         url.startsWith('moz-extension://') ||
+         url === 'about:blank'
+}
+
+if (isExcludedPage()) {
+  console.log('智编助手: 跳过特殊页面')
 } else if ((window as unknown as { __SMARTEDIT_INJECTED__?: boolean }).__SMARTEDIT_INJECTED__) {
   console.log('智编助手: 已加载')
 } else {
   (window as unknown as { __SMARTEDIT_INJECTED__: boolean }).__SMARTEDIT_INJECTED__ = true
-  console.log('智编助手已加载')
+  console.log('智编助手已加载 -', window.location.hostname)
   init()
 }
 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "智编助手 SmartEdit AI",
   "version": "1.0.0",
-  "description": "微信公众号编辑器增强工具 - AI 写作、样式库、一键排版",
+  "description": "AI 写作助手 - 智能写作、样式库、一键排版、素材收藏",
   "author": "SmartEdit Team",
   "icons": {
     "16": "assets/icons/icon16.png",
@@ -17,9 +17,7 @@
     "contextMenus"
   ],
   "host_permissions": [
-    "https://mp.weixin.qq.com/*",
-    "https://api.unsplash.com/*",
-    "https://pixabay.com/api/*"
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
@@ -37,7 +35,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://mp.weixin.qq.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content/content.js"],
       "css": ["content/style.css"],
       "run_at": "document_end"
@@ -48,7 +46,7 @@
       "resources": [
         "assets/*"
       ],
-      "matches": ["https://mp.weixin.qq.com/*"]
+      "matches": ["<all_urls>"]
     }
   ],
   "options_page": "src/options/index.html"

@@ -11,10 +11,17 @@ export default function App() {
   const [stats, setStats] = useState<Stats>({ styles: 0, ai: 0, images: 0 })
 
   useEffect(() => {
-    // 检查当前标签页状态
+    // 检查当前标签页状态（排除浏览器内置页面）
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0]
-      setIsActive(tab?.url?.includes('mp.weixin.qq.com') || false)
+      const url = tab?.url || ''
+      const isExcluded = url.startsWith('chrome://') || 
+                         url.startsWith('chrome-extension://') || 
+                         url.startsWith('edge://') ||
+                         url.startsWith('about:') ||
+                         url === 'about:blank' ||
+                         !url
+      setIsActive(!isExcluded)
     })
 
     // 加载统计数据
@@ -30,7 +37,7 @@ export default function App() {
   const sendMessage = async (type: string, tab?: string) => {
     const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
     if (!isActive) {
-      alert('请先打开微信公众平台 (mp.weixin.qq.com)')
+      alert('当前页面不支持使用智编助手')
       return
     }
     if (currentTab?.id) {
@@ -90,8 +97,8 @@ export default function App() {
             )}
           </div>
           <div>
-            <div className="font-semibold text-gray-800">{isActive ? '已激活' : '等待激活'}</div>
-            <div className="text-sm text-gray-500">{isActive ? '智编助手已在当前页面运行' : '请打开微信公众平台'}</div>
+            <div className="font-semibold text-gray-800">{isActive ? '已激活' : '不可用'}</div>
+            <div className="text-sm text-gray-500">{isActive ? '智编助手已在当前页面运行' : '当前页面不支持'}</div>
           </div>
         </div>
 
