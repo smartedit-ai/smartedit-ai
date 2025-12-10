@@ -2,9 +2,10 @@
 // 注入到微信公众平台页面
 
 import './content.css'
-import React from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import Sidebar from './Sidebar'
+import FloatingPanel from './components/FloatingPanel'
 import { aiRequest, getEditor } from './utils'
 import { addCollection } from '../lib/storage'
 
@@ -22,13 +23,44 @@ const SENSITIVE_WORDS: Record<string, string[]> = {
 
 // 全局状态
 let sidebarRoot: Root | null = null
+let floatingPanelRoot: Root | null = null
 let sidebarRef: { setIsOpen: (open: boolean) => void; setActiveTab: (tab: string) => void } | null = null
+let floatingPanelState: { 
+  setIsOpen: (open: boolean) => void
+  setText: (text: string) => void
+  setPosition: (pos: { x: number; y: number }) => void 
+} | null = null
 
 // 暴露给 Sidebar 组件的注册函数
 ;(window as unknown as { __SMARTEDIT_REGISTER__: typeof registerSidebar }).__SMARTEDIT_REGISTER__ = registerSidebar
 
 function registerSidebar(ref: typeof sidebarRef) {
   sidebarRef = ref
+}
+
+// 浮窗包装组件
+function FloatingPanelWrapper() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [text, setText] = useState('')
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+
+  // 注册状态控制函数
+  useEffect(() => {
+    floatingPanelState = { setIsOpen, setText, setPosition }
+    return () => { floatingPanelState = null }
+  }, [])
+
+  const handleClose = useCallback(() => {
+    setIsOpen(false)
+  }, [])
+
+  return React.createElement(FloatingPanel, {
+    isOpen,
+    onClose: handleClose,
+    initialText: text,
+    initialAction: 'translate',
+    position
+  })
 }
 
 // 排除特殊页面（扩展页面、浏览器内置页面等）
@@ -62,6 +94,15 @@ function init() {
   sidebarRoot = createRoot(container)
   sidebarRoot.render(React.createElement(Sidebar))
 
+  // 创建浮窗容器
+  const floatingContainer = document.createElement('div')
+  floatingContainer.id = 'smartedit-floating-root'
+  document.body.appendChild(floatingContainer)
+
+  // 渲染浮窗组件
+  floatingPanelRoot = createRoot(floatingContainer)
+  floatingPanelRoot.render(React.createElement(FloatingPanelWrapper))
+
   // 监听来自 popup 和 background 的消息
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     console.log('收到消息:', message)
@@ -92,6 +133,26 @@ async function handleContextMenuAction(action: string, text: string, linkUrl?: s
   const editor = getEditor()
   
   switch (action) {
+    // 智能翻译 - 打开浮窗
+    case 'smart-translate':
+      if (!text) { alert('请先选中要翻译的文字'); return }
+      if (floatingPanelState) {
+        // 获取选中文字的位置
+        const selection = window.getSelection()
+        let posX = window.innerWidth - 460
+        let posY = 100
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0)
+          const rect = range.getBoundingClientRect()
+          posX = Math.min(rect.right + 20, window.innerWidth - 460)
+          posY = Math.max(rect.top, 20)
+        }
+        floatingPanelState.setPosition({ x: posX, y: posY })
+        floatingPanelState.setText(text)
+        floatingPanelState.setIsOpen(true)
+      }
+      break
+
     // AI 写作功能
     case 'rewrite':
       if (!text) { alert('请先选中文字'); return }

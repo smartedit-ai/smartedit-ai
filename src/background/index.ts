@@ -98,6 +98,14 @@ function createContextMenus() {
       contexts: ['all']
     })
 
+    // 智能翻译（独立显眼位置）
+    chrome.contextMenus.create({
+      id: 'smartedit-smart-translate',
+      parentId: 'smartedit-root',
+      title: '🌐 智能翻译',
+      contexts: ['selection']
+    })
+
     // 二级菜单分组：AI 写作
     chrome.contextMenus.create({
       id: 'smartedit-ai-group',
@@ -400,6 +408,19 @@ ${data.text}
     'translate': `${data.text}
 
 请直接输出翻译结果，不要加任何说明或解释。保持原文的格式和段落结构。`,
+    'smart-translate': `你是一位精通中英双语的专业翻译官，同时也是一位优秀的语言艺术家。你的翻译风格自然流畅，既忠于原文又不失优雅。
+
+请翻译以下内容：
+${data.text}
+
+翻译要求：
+1. 如果原文是中文，翻译成地道的英文；如果原文是英文或其他语言，翻译成优美的中文
+2. 翻译要自然流畅，避免机翻的生硬感，读起来像是母语者写的
+3. 保持原文的语气和风格（正式/轻松/幽默等）
+4. 专业术语要准确，必要时可在括号内保留原文
+5. 对于习语、俚语、文化特定表达，要进行本地化处理而非直译
+
+请直接输出翻译结果，不要添加任何解释或说明。`,
     'style-rewrite': `${data.text}
 
 请直接输出改写后的内容，不要加任何说明。保持原文的核心意思，但用指定的风格重新表达。`,
