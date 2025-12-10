@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { createRoot, Root } from 'react-dom/client'
 import Sidebar from './Sidebar'
 import FloatingPanel from './components/FloatingPanel'
+import SelectionToolbar from './components/SelectionToolbar'
 import { aiRequest, getEditor } from './utils'
 import { addCollection } from '../lib/storage'
 
@@ -24,6 +25,7 @@ const SENSITIVE_WORDS: Record<string, string[]> = {
 // 全局状态
 let sidebarRoot: Root | null = null
 let floatingPanelRoot: Root | null = null
+let selectionToolbarRoot: Root | null = null
 let sidebarRef: { setIsOpen: (open: boolean) => void; setActiveTab: (tab: string) => void } | null = null
 let floatingPanelState: { 
   setIsOpen: (open: boolean) => void
@@ -60,6 +62,21 @@ function FloatingPanelWrapper() {
     initialText: text,
     initialAction: 'translate',
     position
+  })
+}
+
+// 划词工具栏包装组件
+function SelectionToolbarWrapper() {
+  const handleTranslate = useCallback((text: string, pos: { x: number; y: number }) => {
+    if (floatingPanelState) {
+      floatingPanelState.setPosition(pos)
+      floatingPanelState.setText(text)
+      floatingPanelState.setIsOpen(true)
+    }
+  }, [])
+
+  return React.createElement(SelectionToolbar, {
+    onTranslate: handleTranslate
   })
 }
 
@@ -102,6 +119,15 @@ function init() {
   // 渲染浮窗组件
   floatingPanelRoot = createRoot(floatingContainer)
   floatingPanelRoot.render(React.createElement(FloatingPanelWrapper))
+
+  // 创建划词工具栏容器
+  const selectionToolbarContainer = document.createElement('div')
+  selectionToolbarContainer.id = 'smartedit-selection-toolbar-root'
+  document.body.appendChild(selectionToolbarContainer)
+
+  // 渲染划词工具栏组件
+  selectionToolbarRoot = createRoot(selectionToolbarContainer)
+  selectionToolbarRoot.render(React.createElement(SelectionToolbarWrapper))
 
   // 监听来自 popup 和 background 的消息
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
