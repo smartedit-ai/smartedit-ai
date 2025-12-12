@@ -199,6 +199,51 @@ export class ObsidianClient {
       return { success: false, error: (error as Error).message }
     }
   }
+
+  /**
+   * 递归扫描目录，获取所有笔记文件
+   */
+  async scanDirectory(path: string = '/', maxDepth: number = 5): Promise<{ 
+    success: boolean
+    notes?: Array<{ path: string; name: string; folder: string }>
+    error?: string 
+  }> {
+    const allNotes: Array<{ path: string; name: string; folder: string }> = []
+    
+    const scan = async (currentPath: string, depth: number): Promise<void> => {
+      if (depth > maxDepth) return
+      
+      try {
+        const result = await this.listFiles(currentPath)
+        if (!result.success || !result.files) return
+        
+        for (const file of result.files) {
+          const fullPath = currentPath === '/' ? file : `${currentPath}/${file}`
+          
+          if (file.endsWith('.md')) {
+            // 是 Markdown 文件
+            allNotes.push({
+              path: fullPath,
+              name: file.replace('.md', ''),
+              folder: currentPath === '/' ? '根目录' : currentPath
+            })
+          } else if (!file.includes('.')) {
+            // 是文件夹，递归扫描
+            await scan(fullPath, depth + 1)
+          }
+        }
+      } catch (err) {
+        console.error('扫描目录失败:', currentPath, err)
+      }
+    }
+    
+    try {
+      await scan(path, 0)
+      return { success: true, notes: allNotes }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  }
 }
 
 export function formatAsObsidianNote(

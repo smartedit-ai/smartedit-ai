@@ -3,6 +3,7 @@ import { NAV_ITEMS } from './constants'
 import { TemplatePanel, MarkdownPanel, AIWritingPanel, ImagePanel, ToolPanel } from './components'
 import RSSPanel from './components/RSSPanel'
 import StoragePanel from './components/StoragePanel'
+import KnowledgePanel from './components/KnowledgePanel'
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -102,6 +103,10 @@ export default function Sidebar() {
 
             {activeNav === 'tool' && (
               <ToolPanel themeColor={themeColor} />
+            )}
+
+            {activeNav === 'knowledge' && (
+              <KnowledgePanel themeColor={themeColor} />
             )}
 
             {activeNav === 'rss' && (
