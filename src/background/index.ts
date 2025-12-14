@@ -221,6 +221,12 @@ function createContextMenus() {
       title: '收藏链接',
       contexts: ['link']
     })
+    chrome.contextMenus.create({
+      id: 'smartedit-save-page',
+      parentId: 'smartedit-collect-group',
+      title: '📥 保存网页到 Obsidian',
+      contexts: ['page']
+    })
 
     // 二级菜单分组：快捷操作
     chrome.contextMenus.create({

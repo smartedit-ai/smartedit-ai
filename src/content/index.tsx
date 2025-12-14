@@ -9,6 +9,8 @@ import FloatingPanel from './components/FloatingPanel'
 import SelectionToolbar from './components/SelectionToolbar'
 import { aiRequest, getEditor } from './utils'
 import { addCollection } from '../lib/storage'
+import { extractPageContent, formatAsObsidianPage, generateNotePath } from '../lib/webClipper'
+import { ObsidianClient, ObsidianConfig } from '../lib/obsidian'
 
 // 敏感词库
 const SENSITIVE_WORDS: Record<string, string[]> = {
@@ -434,8 +436,77 @@ async function handleContextMenuAction(action: string, text: string, linkUrl?: s
       }
       break
 
+    // 保存网页到 Obsidian
+    case 'save-page':
+      await savePageToObsidian()
+      break
+
     default:
       console.log('未处理的右键菜单操作:', action)
+  }
+}
+
+// 保存网页到 Obsidian
+async function savePageToObsidian() {
+  showLoading('正在提取网页内容...')
+  
+  try {
+    // 获取 Obsidian 配置
+    const result = await chrome.storage.sync.get(['settings'])
+    const obsidianConfig = result.settings?.obsidian as ObsidianConfig | undefined
+    
+    if (!obsidianConfig?.enabled) {
+      hideLoading()
+      alert('❌ 请先在设置中启用 Obsidian 集成')
+      return
+    }
+    
+    // 提取网页内容
+    const pageContent = extractPageContent()
+    console.log('提取的网页内容:', pageContent)
+    
+    if (!pageContent.markdown || pageContent.markdown.length < 50) {
+      hideLoading()
+      const confirmSave = confirm('⚠️ 提取的内容较少，可能是动态加载的页面。\n\n是否仍要保存？')
+      if (!confirmSave) return
+      showLoading('正在保存到 Obsidian...')
+    }
+    
+    // 格式化为 Obsidian 笔记
+    const noteContent = formatAsObsidianPage(pageContent)
+    
+    // 生成笔记路径
+    const webClipPath = obsidianConfig.defaultPath 
+      ? `${obsidianConfig.defaultPath}/网页剪藏` 
+      : '网页剪藏'
+    const notePath = generateNotePath(pageContent.title, webClipPath)
+    
+    // 保存到 Obsidian
+    showLoading('正在保存到 Obsidian...')
+    const client = new ObsidianClient(obsidianConfig)
+    const saveResult = await client.saveNote(notePath, noteContent)
+    
+    hideLoading()
+    
+    if (saveResult.success) {
+      // 同时保存到本地收藏
+      await addCollection({
+        type: 'article',
+        title: pageContent.title,
+        content: pageContent.description || pageContent.markdown.slice(0, 200),
+        source: window.location.hostname,
+        sourceUrl: pageContent.url,
+        tags: ['网页剪藏', 'obsidian']
+      })
+      
+      alert(`✅ 网页已保存到 Obsidian\n\n📁 路径: ${notePath}.md\n📝 标题: ${pageContent.title}\n📊 字数: 约 ${pageContent.markdown.length} 字\n⏱️ 阅读时长: 约 ${pageContent.readingTime} 分钟`)
+    } else {
+      alert(`❌ 保存失败\n\n${saveResult.error || '未知错误'}\n\n请检查：\n1. Obsidian 是否已启动\n2. Local REST API 插件是否已启用\n3. API Key 是否正确`)
+    }
+  } catch (err) {
+    hideLoading()
+    console.error('保存网页失败:', err)
+    alert(`❌ 保存失败: ${(err as Error).message}`)
   }
 }
 
