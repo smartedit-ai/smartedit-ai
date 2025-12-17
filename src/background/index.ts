@@ -227,6 +227,12 @@ function createContextMenus() {
       title: '📥 保存网页到 Obsidian',
       contexts: ['page']
     })
+    chrome.contextMenus.create({
+      id: 'smartedit-save-chat',
+      parentId: 'smartedit-collect-group',
+      title: '💬 保存 AI 对话到 Obsidian',
+      contexts: ['page']
+    })
 
     // 二级菜单分组：快捷操作
     chrome.contextMenus.create({

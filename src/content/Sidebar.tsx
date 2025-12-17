@@ -4,6 +4,7 @@ import { TemplatePanel, MarkdownPanel, AIWritingPanel, ImagePanel, ToolPanel } f
 import RSSPanel from './components/RSSPanel'
 import StoragePanel from './components/StoragePanel'
 import KnowledgePanel from './components/KnowledgePanel'
+import InfoAggregatorPanel from './components/InfoAggregatorPanel'
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -115,6 +116,10 @@ export default function Sidebar() {
 
             {activeNav === 'storage' && (
               <StoragePanel themeColor={themeColor} />
+            )}
+
+            {activeNav === 'aggregator' && (
+              <InfoAggregatorPanel themeColor={themeColor} />
             )}
           </div>
         </div>

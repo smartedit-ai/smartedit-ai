@@ -11,6 +11,13 @@ import { aiRequest, getEditor } from './utils'
 import { addCollection } from '../lib/storage'
 import { extractPageContent, formatAsObsidianPage, generateNotePath } from '../lib/webClipper'
 import { ObsidianClient, ObsidianConfig } from '../lib/obsidian'
+import { 
+  extractConversation, 
+  formatConversationAsMarkdown, 
+  generateSavePath as generateChatSavePath,
+  isSupportedChatPlatform,
+  getPlatformInfo
+} from '../lib/chatExtractor'
 
 // 敏感词库
 const SENSITIVE_WORDS: Record<string, string[]> = {
@@ -441,8 +448,84 @@ async function handleContextMenuAction(action: string, text: string, linkUrl?: s
       await savePageToObsidian()
       break
 
+    // 保存 AI 对话到 Obsidian
+    case 'save-chat':
+      await saveChatToObsidian()
+      break
+
     default:
       console.log('未处理的右键菜单操作:', action)
+  }
+}
+
+// 保存 AI 对话到 Obsidian
+async function saveChatToObsidian() {
+  // 检查是否为支持的聊天平台
+  if (!isSupportedChatPlatform()) {
+    alert(`❌ 当前页面不是支持的 AI 聊天平台\n\n支持的平台：\n• ChatGPT (chat.openai.com)\n• Claude (claude.ai)\n• Gemini (gemini.google.com)\n• Copilot (copilot.microsoft.com)\n• Poe (poe.com)\n• Perplexity (perplexity.ai)\n• DeepSeek (chat.deepseek.com)\n• Kimi (kimi.moonshot.cn)\n• 豆包 (doubao.com)`)
+    return
+  }
+
+  showLoading('正在提取对话内容...')
+
+  try {
+    // 获取 Obsidian 配置
+    const result = await chrome.storage.sync.get(['settings'])
+    const obsidianConfig = result.settings?.obsidian as ObsidianConfig | undefined
+
+    if (!obsidianConfig?.enabled) {
+      hideLoading()
+      alert('❌ 请先在设置中启用 Obsidian 集成')
+      return
+    }
+
+    // 提取对话
+    const conversation = extractConversation()
+    
+    if (!conversation || conversation.messages.length === 0) {
+      hideLoading()
+      alert('❌ 未能提取到对话内容\n\n可能原因：\n1. 页面尚未完全加载\n2. 对话内容为空\n3. 页面结构已更新')
+      return
+    }
+
+    const { name: platformName, icon } = getPlatformInfo(conversation.platform)
+    console.log(`从 ${platformName} 提取到 ${conversation.messages.length} 条消息`)
+
+    // 格式化为 Markdown
+    const noteContent = formatConversationAsMarkdown(conversation)
+
+    // 生成保存路径
+    const chatPath = obsidianConfig.defaultPath
+      ? `${obsidianConfig.defaultPath}/AI对话`
+      : 'AI对话'
+    const notePath = generateChatSavePath(conversation, chatPath)
+
+    // 保存到 Obsidian
+    showLoading('正在保存到 Obsidian...')
+    const client = new ObsidianClient(obsidianConfig)
+    const saveResult = await client.saveNote(notePath, noteContent)
+
+    hideLoading()
+
+    if (saveResult.success) {
+      // 同时保存到本地收藏
+      await addCollection({
+        type: 'article',
+        title: conversation.title,
+        content: `${platformName} 对话 - ${conversation.messages.length} 条消息`,
+        source: platformName,
+        sourceUrl: conversation.url,
+        tags: ['AI对话', platformName.toLowerCase(), 'obsidian']
+      })
+
+      alert(`✅ ${icon} 对话已保存到 Obsidian\n\n📁 路径: ${notePath}.md\n📝 标题: ${conversation.title}\n🤖 平台: ${platformName}\n💬 消息数: ${conversation.messages.length}`)
+    } else {
+      alert(`❌ 保存失败\n\n${saveResult.error || '未知错误'}\n\n请检查：\n1. Obsidian 是否已启动\n2. Local REST API 插件是否已启用\n3. API Key 是否正确`)
+    }
+  } catch (err) {
+    hideLoading()
+    console.error('保存对话失败:', err)
+    alert(`❌ 保存失败: ${(err as Error).message}`)
   }
 }
 

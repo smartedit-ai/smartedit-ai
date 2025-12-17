@@ -66,6 +66,7 @@ export const NAV_ITEMS = [
   { id: 'markdown', icon: '📋', label: 'MD' },
   { id: 'ai', icon: '✨', label: '写作' },
   { id: 'knowledge', icon: '📚', label: '知识库' },
+  { id: 'aggregator', icon: '📡', label: '信息聚合' },
   { id: 'rss', icon: '📰', label: 'RSS' },
   { id: 'storage', icon: '💾', label: '存储' },
   { id: 'image', icon: '🖼️', label: '配图' },
