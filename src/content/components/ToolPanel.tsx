@@ -1,6 +1,20 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { FORMAT_TEMPLATES } from '../constants'
 import { applyTemplate, clearFormat, addIndent, adjustLineHeight, adjustParagraphSpacing, getEditor, aiRequest } from '../utils'
+import {
+  isArxivPage,
+  getArxivPageType,
+  extractPaperFromPage,
+  generateInterpretationPrompt,
+  parseInterpretationResult,
+  formatInterpretationAsMarkdown,
+  generatePaperSavePath,
+  getCategoryName,
+  getDifficultyDescription,
+  ArxivPaper,
+  PaperInterpretation
+} from '../../lib/arxivParser'
+import { ObsidianClient, ObsidianConfig } from '../../lib/obsidian'
 
 interface ToolPanelProps {
   themeColor: string
@@ -43,9 +57,15 @@ const SENSITIVE_WORDS = {
 }
 
 export default function ToolPanel({ themeColor }: ToolPanelProps) {
-  const [activeTab, setActiveTab] = useState<'tools' | 'format'>('tools')
+  const [activeTab, setActiveTab] = useState<'tools' | 'format' | 'paper'>('tools')
   const [isLoading, setIsLoading] = useState(false)
   const [loadingTool, setLoadingTool] = useState('')
+  
+  // arXiv 论文解读相关状态
+  const [currentPaper, setCurrentPaper] = useState<ArxivPaper | null>(null)
+  const [interpretation, setInterpretation] = useState<PaperInterpretation | null>(null)
+  const [paperError, setPaperError] = useState<string | null>(null)
+  const [isSavingToObsidian, setIsSavingToObsidian] = useState(false)
 
   // 处理效率工具点击
   const handleToolClick = (toolId: string) => {
@@ -423,6 +443,137 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
     }
   }
 
+  // 提取论文信息
+  const handleExtractPaper = useCallback(() => {
+    setPaperError(null)
+    setInterpretation(null)
+    
+    if (!isArxivPage()) {
+      setPaperError('请在 arXiv.org 论文页面使用此功能')
+      return
+    }
+    
+    const pageType = getArxivPageType()
+    if (pageType !== 'abstract') {
+      setPaperError('请打开论文的摘要页面（/abs/xxx）')
+      return
+    }
+    
+    const paper = extractPaperFromPage()
+    if (!paper) {
+      setPaperError('无法提取论文信息，请刷新页面重试')
+      return
+    }
+    
+    setCurrentPaper(paper)
+  }, [])
+
+  // AI 解读论文
+  const handleInterpretPaper = useCallback(async () => {
+    if (!currentPaper) {
+      setPaperError('请先提取论文信息')
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingTool('paper-interpret')
+    setPaperError(null)
+    
+    try {
+      const prompt = generateInterpretationPrompt(currentPaper)
+      const result = await aiRequest('paper-interpret', prompt)
+      
+      if (result) {
+        const parsed = parseInterpretationResult(currentPaper, result)
+        if (parsed) {
+          setInterpretation(parsed)
+        } else {
+          setPaperError('AI 返回格式解析失败，请重试')
+        }
+      } else {
+        setPaperError('AI 解读失败，请检查 API 配置')
+      }
+    } catch (e) {
+      setPaperError(`解读失败: ${(e as Error).message}`)
+    }
+    
+    setIsLoading(false)
+    setLoadingTool('')
+  }, [currentPaper])
+
+  // 保存解读到 Obsidian
+  const handleSaveToObsidian = useCallback(async () => {
+    if (!interpretation) return
+    
+    setIsSavingToObsidian(true)
+    
+    try {
+      const result = await chrome.storage.sync.get(['settings'])
+      const obsidianConfig = result.settings?.obsidian as ObsidianConfig | undefined
+      
+      if (!obsidianConfig?.enabled) {
+        alert('❌ 请先在设置中启用 Obsidian 集成')
+        setIsSavingToObsidian(false)
+        return
+      }
+      
+      const noteContent = formatInterpretationAsMarkdown(interpretation)
+      const basePath = obsidianConfig.defaultPath || ''
+      const notePath = generatePaperSavePath(interpretation.paper, basePath)
+      
+      const client = new ObsidianClient(obsidianConfig)
+      const saveResult = await client.saveNote(notePath, noteContent)
+      
+      if (saveResult.success) {
+        alert(`✅ 论文解读已保存到 Obsidian\n\n📁 路径: ${notePath}.md`)
+      } else {
+        alert(`❌ 保存失败: ${saveResult.error || '未知错误'}`)
+      }
+    } catch (e) {
+      alert(`❌ 保存失败: ${(e as Error).message}`)
+    }
+    
+    setIsSavingToObsidian(false)
+  }, [interpretation])
+
+  // 复制解读内容
+  const handleCopyInterpretation = useCallback(() => {
+    if (!interpretation) return
+    
+    const text = `# ${interpretation.paper.title}
+
+## 一句话总结
+${interpretation.oneSentenceSummary}
+
+## 通俗解读
+${interpretation.laymansExplanation}
+
+## 核心贡献
+${interpretation.keyContributions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+## 研究背景
+${interpretation.background}
+
+## 研究方法
+${interpretation.methodology}
+
+## 主要发现
+${interpretation.findings}
+
+## 实际应用
+${interpretation.applications.map(a => `- ${a}`).join('\n')}
+
+## 术语表
+${interpretation.glossary.map(g => `- ${g.term}: ${g.explanation}`).join('\n')}
+
+---
+arXiv: ${interpretation.paper.arxivUrl}
+`
+    navigator.clipboard.writeText(text).then(() => {
+      alert('✅ 解读内容已复制到剪贴板')
+    })
+  }, [interpretation])
+
   return (
     <div className="p-4 space-y-4">
       {/* Tab 切换 */}
@@ -442,6 +593,14 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
           }`}
         >
           排版工具
+        </button>
+        <button
+          onClick={() => setActiveTab('paper')}
+          className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${
+            activeTab === 'paper' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+          }`}
+        >
+          📄 论文
         </button>
       </div>
 
@@ -584,6 +743,218 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
             </div>
           </div>
         </>
+      )}
+
+      {/* 论文解读标签页 */}
+      {activeTab === 'paper' && (
+        <div className="space-y-4">
+          {/* 页面状态检测 */}
+          <div className={`p-3 rounded-lg ${isArxivPage() ? 'bg-green-50' : 'bg-yellow-50'}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{isArxivPage() ? '📄' : '⚠️'}</span>
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${isArxivPage() ? 'text-green-700' : 'text-yellow-700'}`}>
+                  {isArxivPage() ? 'arXiv 论文页面已就绪' : '请打开 arXiv.org 论文页面'}
+                </p>
+                {isArxivPage() && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    页面类型: {getArxivPageType() === 'abstract' ? '摘要页' : getArxivPageType() === 'pdf' ? 'PDF页' : '其他'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 操作按钮 */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleExtractPaper}
+              disabled={!isArxivPage()}
+              className="flex-1 py-2.5 px-4 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              📥 提取论文信息
+            </button>
+          </div>
+
+          {/* 错误提示 */}
+          {paperError && (
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+              {paperError}
+            </div>
+          )}
+
+          {/* 论文信息展示 */}
+          {currentPaper && (
+            <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+              <h3 className="font-medium text-gray-800 text-sm line-clamp-2">{currentPaper.title}</h3>
+              <div className="text-xs text-gray-500">
+                <p>👥 {currentPaper.authors.slice(0, 3).join(', ')}{currentPaper.authors.length > 3 ? ` 等 ${currentPaper.authors.length} 人` : ''}</p>
+                <p>📂 {currentPaper.categories.map(c => getCategoryName(c)).join(', ')}</p>
+                <p>📅 {currentPaper.publishedDate}</p>
+              </div>
+              
+              {/* 摘要预览 */}
+              <details className="text-xs">
+                <summary className="text-blue-600 cursor-pointer hover:text-blue-700">查看原文摘要</summary>
+                <p className="mt-2 text-gray-600 leading-relaxed">{currentPaper.abstract}</p>
+              </details>
+
+              {/* AI 解读按钮 */}
+              <button
+                onClick={handleInterpretPaper}
+                disabled={isLoading}
+                className="w-full mt-3 py-2.5 px-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg font-medium text-sm hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 transition-all"
+              >
+                {isLoading && loadingTool === 'paper-interpret' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    AI 正在解读...
+                  </span>
+                ) : (
+                  '🤖 AI 通俗解读'
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* 解读结果展示 */}
+          {interpretation && (
+            <div className="space-y-3">
+              {/* 一句话总结 */}
+              <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <div className="text-xs text-blue-600 mb-1">💡 一句话总结</div>
+                <p className="text-sm font-medium text-gray-800">{interpretation.oneSentenceSummary}</p>
+              </div>
+
+              {/* 难度评级 */}
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-gray-500">难度:</span>
+                <span className="text-yellow-500">{'⭐'.repeat(interpretation.difficultyLevel)}{'☆'.repeat(5 - interpretation.difficultyLevel)}</span>
+                <span className="text-xs text-gray-400">{getDifficultyDescription(interpretation.difficultyLevel)}</span>
+              </div>
+
+              {/* 通俗解读 */}
+              <div className="p-3 bg-white rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2">🎯 通俗解读（给普通人看的）</div>
+                <p className="text-sm text-gray-700 leading-relaxed">{interpretation.laymansExplanation}</p>
+              </div>
+
+              {/* 核心贡献 */}
+              <div className="p-3 bg-white rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2">✨ 核心贡献</div>
+                <ul className="space-y-1">
+                  {interpretation.keyContributions.map((c, i) => (
+                    <li key={i} className="text-sm text-gray-700 flex gap-2">
+                      <span className="text-green-500">✓</span>
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* 研究背景和方法 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2 bg-white rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-500 mb-1">🔍 背景</div>
+                  <p className="text-xs text-gray-700">{interpretation.background}</p>
+                </div>
+                <div className="p-2 bg-white rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-500 mb-1">🛠️ 方法</div>
+                  <p className="text-xs text-gray-700">{interpretation.methodology}</p>
+                </div>
+              </div>
+
+              {/* 主要发现 */}
+              <div className="p-3 bg-white rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2">📊 主要发现</div>
+                <p className="text-sm text-gray-700">{interpretation.findings}</p>
+              </div>
+
+              {/* 实际应用 */}
+              <div className="p-3 bg-white rounded-lg border border-gray-200">
+                <div className="text-xs text-gray-500 mb-2">🌍 实际应用</div>
+                <div className="flex flex-wrap gap-1">
+                  {interpretation.applications.map((app, i) => (
+                    <span key={i} className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded">
+                      {app}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* 术语表 */}
+              {interpretation.glossary.length > 0 && (
+                <details className="p-3 bg-white rounded-lg border border-gray-200">
+                  <summary className="text-xs text-gray-500 cursor-pointer">📖 术语表 ({interpretation.glossary.length})</summary>
+                  <div className="mt-2 space-y-1">
+                    {interpretation.glossary.map((g, i) => (
+                      <div key={i} className="text-xs">
+                        <span className="font-medium text-gray-700">{g.term}:</span>
+                        <span className="text-gray-600 ml-1">{g.explanation}</span>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* 操作按钮 */}
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleCopyInterpretation}
+                  className="flex-1 py-2 px-3 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
+                >
+                  📋 复制解读
+                </button>
+                <button
+                  onClick={handleSaveToObsidian}
+                  disabled={isSavingToObsidian}
+                  className="flex-1 py-2 px-3 bg-purple-500 text-white rounded-lg text-sm hover:bg-purple-600 disabled:opacity-50 transition-colors"
+                >
+                  {isSavingToObsidian ? '保存中...' : '💾 存到 Obsidian'}
+                </button>
+              </div>
+
+              {/* 原文链接 */}
+              <div className="flex gap-2 text-xs">
+                <a
+                  href={interpretation.paper.arxivUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 text-center bg-gray-50 text-blue-600 rounded hover:bg-gray-100"
+                >
+                  🔗 arXiv 原文
+                </a>
+                <a
+                  href={interpretation.paper.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-2 text-center bg-gray-50 text-blue-600 rounded hover:bg-gray-100"
+                >
+                  📄 下载 PDF
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* 使用说明 */}
+          {!currentPaper && !paperError && (
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-700 mb-2">📚 论文解读功能</h4>
+              <p className="text-xs text-gray-500 mb-3">
+                让 AI 帮你用通俗易懂的语言解读学术论文，即使没有专业背景也能看懂！
+              </p>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p>1️⃣ 打开 <a href="https://arxiv.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">arxiv.org</a> 论文页面</p>
+                <p>2️⃣ 点击「提取论文信息」</p>
+                <p>3️⃣ 点击「AI 通俗解读」</p>
+                <p>4️⃣ 保存到 Obsidian 或复制分享</p>
+              </div>
+              <div className="mt-3 p-2 bg-blue-50 rounded text-xs text-blue-600">
+                💡 支持 arXiv 上的所有论文，包括 AI、机器学习、物理、数学等领域
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
