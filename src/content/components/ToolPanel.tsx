@@ -12,12 +12,57 @@ import {
   getCategoryName,
   getDifficultyDescription,
   ArxivPaper,
-  PaperInterpretation
+  PaperInterpretation,
+  // HTML 页面相关
+  isArxivHtmlPage,
+  extractPaperFromHtmlPage,
+  extractPaperSections,
+  PaperSection,
+  // 沉浸式翻译
+  startImmersiveTranslation,
+  stopImmersiveTranslation,
+  removeAllTranslations,
+  getTranslationStatus,
+  // 总结和脑图
+  generateSummaryPrompt,
+  generateMindMapPrompt,
+  parseMindMapMarkdown,
+  generateMermaidMindMap,
+  MindMapNode,
+  // 知识图谱
+  generateKnowledgeGraphPrompt,
+  parseKnowledgeGraph,
+  formatKnowledgeGraphAsMarkdown,
+  KnowledgeGraph
 } from '../../lib/arxivParser'
 import { ObsidianClient, ObsidianConfig } from '../../lib/obsidian'
 
 interface ToolPanelProps {
   themeColor: string
+}
+
+// 脑图树形组件
+function MindMapTree({ node, depth = 0 }: { node: MindMapNode; depth?: number }) {
+  return (
+    <div style={{ marginLeft: depth * 12 }}>
+      <div className={`flex items-center gap-1 py-0.5 ${depth === 0 ? 'font-medium text-gray-800' : 'text-gray-600'}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${depth === 0 ? 'bg-purple-500' : depth === 1 ? 'bg-blue-400' : 'bg-gray-300'}`}></span>
+        <span className="text-xs">{node.text}</span>
+      </div>
+      {node.children.map((child, i) => (
+        <MindMapTree key={i} node={child} depth={depth + 1} />
+      ))}
+    </div>
+  )
+}
+
+// 将脑图转为 Markdown
+function renderMindMapAsMarkdown(node: MindMapNode, level: number): string {
+  let md = `${'#'.repeat(level)} ${node.text}\n\n`
+  node.children.forEach(child => {
+    md += renderMindMapAsMarkdown(child, level + 1)
+  })
+  return md
 }
 
 // 效率工具配置
@@ -66,6 +111,14 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
   const [interpretation, setInterpretation] = useState<PaperInterpretation | null>(null)
   const [paperError, setPaperError] = useState<string | null>(null)
   const [isSavingToObsidian, setIsSavingToObsidian] = useState(false)
+  
+  // HTML 页面高级功能状态
+  const [paperSections, setPaperSections] = useState<PaperSection[]>([])
+  const [translationProgress, setTranslationProgress] = useState<{ current: number; total: number } | null>(null)
+  const [paperSummary, setPaperSummary] = useState<string | null>(null)
+  const [mindMap, setMindMap] = useState<MindMapNode | null>(null)
+  const [knowledgeGraph, setKnowledgeGraph] = useState<KnowledgeGraph | null>(null)
+  const [activeFeature, setActiveFeature] = useState<'interpret' | 'translate' | 'summary' | 'mindmap' | 'knowledge'>('interpret')
 
   // 处理效率工具点击
   const handleToolClick = (toolId: string) => {
@@ -443,31 +496,6 @@ export default function ToolPanel({ themeColor }: ToolPanelProps) {
     }
   }
 
-  // 提取论文信息
-  const handleExtractPaper = useCallback(() => {
-    setPaperError(null)
-    setInterpretation(null)
-    
-    if (!isArxivPage()) {
-      setPaperError('请在 arXiv.org 论文页面使用此功能')
-      return
-    }
-    
-    const pageType = getArxivPageType()
-    if (pageType !== 'abstract') {
-      setPaperError('请打开论文的摘要页面（/abs/xxx）')
-      return
-    }
-    
-    const paper = extractPaperFromPage()
-    if (!paper) {
-      setPaperError('无法提取论文信息，请刷新页面重试')
-      return
-    }
-    
-    setCurrentPaper(paper)
-  }, [])
-
   // AI 解读论文
   const handleInterpretPaper = useCallback(async () => {
     if (!currentPaper) {
@@ -573,6 +601,221 @@ arXiv: ${interpretation.paper.arxivUrl}
       alert('✅ 解读内容已复制到剪贴板')
     })
   }, [interpretation])
+
+  // 提取 HTML 页面论文信息和章节
+  const handleExtractHtmlPaper = useCallback(() => {
+    setPaperError(null)
+    setInterpretation(null)
+    setPaperSummary(null)
+    setMindMap(null)
+    setKnowledgeGraph(null)
+    
+    // 尝试从 HTML 页面提取
+    let paper = extractPaperFromHtmlPage()
+    
+    // 如果不是 HTML 页面，尝试从摘要页提取
+    if (!paper) {
+      paper = extractPaperFromPage()
+    }
+    
+    if (!paper) {
+      setPaperError('无法提取论文信息，请确保在 arXiv 论文页面')
+      return
+    }
+    
+    setCurrentPaper(paper)
+    
+    // 如果是 HTML 页面，提取章节
+    if (isArxivHtmlPage()) {
+      const sections = extractPaperSections()
+      setPaperSections(sections)
+    }
+  }, [])
+
+  // 沉浸式翻译
+  const handleStartTranslation = useCallback(async () => {
+    if (!isArxivHtmlPage()) {
+      alert('⚠️ 沉浸式翻译仅支持 arXiv HTML 页面\n\n请访问论文的 HTML 版本（/html/xxx）')
+      return
+    }
+    
+    const status = getTranslationStatus()
+    if (status.active) {
+      stopImmersiveTranslation()
+      setTranslationProgress(null)
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingTool('translate')
+    
+    try {
+      await startImmersiveTranslation(
+        async (text) => {
+          const result = await aiRequest('translate', `请将以下学术论文内容翻译成中文，保持专业术语的准确性：\n\n${text}`)
+          return result || ''
+        },
+        (current, total) => {
+          setTranslationProgress({ current, total })
+        }
+      )
+    } catch (e) {
+      console.error('翻译失败:', e)
+    }
+    
+    setIsLoading(false)
+    setLoadingTool('')
+    setTranslationProgress(null)
+  }, [])
+
+  // 移除翻译
+  const handleRemoveTranslation = useCallback(() => {
+    removeAllTranslations()
+    setTranslationProgress(null)
+  }, [])
+
+  // 生成论文总结
+  const handleGenerateSummary = useCallback(async () => {
+    if (!currentPaper) {
+      setPaperError('请先提取论文信息')
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingTool('summary')
+    setPaperError(null)
+    
+    try {
+      const prompt = generateSummaryPrompt(currentPaper, paperSections)
+      const result = await aiRequest('paper-summary', prompt)
+      
+      if (result) {
+        setPaperSummary(result)
+      } else {
+        setPaperError('生成总结失败，请检查 API 配置')
+      }
+    } catch (e) {
+      setPaperError(`生成总结失败: ${(e as Error).message}`)
+    }
+    
+    setIsLoading(false)
+    setLoadingTool('')
+  }, [currentPaper, paperSections])
+
+  // 生成脑图
+  const handleGenerateMindMap = useCallback(async () => {
+    if (!currentPaper) {
+      setPaperError('请先提取论文信息')
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingTool('mindmap')
+    setPaperError(null)
+    
+    try {
+      const prompt = generateMindMapPrompt(currentPaper, paperSections)
+      const result = await aiRequest('paper-mindmap', prompt)
+      
+      if (result) {
+        const parsed = parseMindMapMarkdown(result)
+        setMindMap(parsed)
+      } else {
+        setPaperError('生成脑图失败，请检查 API 配置')
+      }
+    } catch (e) {
+      setPaperError(`生成脑图失败: ${(e as Error).message}`)
+    }
+    
+    setIsLoading(false)
+    setLoadingTool('')
+  }, [currentPaper, paperSections])
+
+  // 生成知识图谱
+  const handleGenerateKnowledgeGraph = useCallback(async () => {
+    if (!currentPaper) {
+      setPaperError('请先提取论文信息')
+      return
+    }
+    
+    setIsLoading(true)
+    setLoadingTool('knowledge')
+    setPaperError(null)
+    
+    try {
+      const prompt = generateKnowledgeGraphPrompt(currentPaper, paperSections)
+      const result = await aiRequest('paper-knowledge', prompt)
+      
+      if (result) {
+        const parsed = parseKnowledgeGraph(result)
+        if (parsed) {
+          setKnowledgeGraph(parsed)
+        } else {
+          setPaperError('解析知识图谱失败，请重试')
+        }
+      } else {
+        setPaperError('生成知识图谱失败，请检查 API 配置')
+      }
+    } catch (e) {
+      setPaperError(`生成知识图谱失败: ${(e as Error).message}`)
+    }
+    
+    setIsLoading(false)
+    setLoadingTool('')
+  }, [currentPaper, paperSections])
+
+  // 复制脑图 Mermaid 代码
+  const handleCopyMindMap = useCallback(() => {
+    if (!mindMap) return
+    const mermaid = generateMermaidMindMap(mindMap)
+    navigator.clipboard.writeText(mermaid).then(() => {
+      alert('✅ Mermaid 脑图代码已复制')
+    })
+  }, [mindMap])
+
+  // 复制知识图谱
+  const handleCopyKnowledgeGraph = useCallback(() => {
+    if (!knowledgeGraph || !currentPaper) return
+    const md = formatKnowledgeGraphAsMarkdown(knowledgeGraph, currentPaper)
+    navigator.clipboard.writeText(md).then(() => {
+      alert('✅ 知识图谱已复制')
+    })
+  }, [knowledgeGraph, currentPaper])
+
+  // 保存知识图谱到 Obsidian
+  const handleSaveKnowledgeGraphToObsidian = useCallback(async () => {
+    if (!knowledgeGraph || !currentPaper) return
+    
+    setIsSavingToObsidian(true)
+    
+    try {
+      const result = await chrome.storage.sync.get(['settings'])
+      const obsidianConfig = result.settings?.obsidian as ObsidianConfig | undefined
+      
+      if (!obsidianConfig?.enabled) {
+        alert('❌ 请先在设置中启用 Obsidian 集成')
+        setIsSavingToObsidian(false)
+        return
+      }
+      
+      const noteContent = formatKnowledgeGraphAsMarkdown(knowledgeGraph, currentPaper)
+      const basePath = obsidianConfig.defaultPath || ''
+      const notePath = `${basePath}/论文解读/知识图谱/${currentPaper.id}-${currentPaper.title.slice(0, 30)}`
+      
+      const client = new ObsidianClient(obsidianConfig)
+      const saveResult = await client.saveNote(notePath, noteContent)
+      
+      if (saveResult.success) {
+        alert(`✅ 知识图谱已保存到 Obsidian\n\n📁 路径: ${notePath}.md`)
+      } else {
+        alert(`❌ 保存失败: ${saveResult.error || '未知错误'}`)
+      }
+    } catch (e) {
+      alert(`❌ 保存失败: ${(e as Error).message}`)
+    }
+    
+    setIsSavingToObsidian(false)
+  }, [knowledgeGraph, currentPaper])
 
   return (
     <div className="p-4 space-y-4">
@@ -749,16 +992,18 @@ arXiv: ${interpretation.paper.arxivUrl}
       {activeTab === 'paper' && (
         <div className="space-y-4">
           {/* 页面状态检测 */}
-          <div className={`p-3 rounded-lg ${isArxivPage() ? 'bg-green-50' : 'bg-yellow-50'}`}>
+          <div className={`p-3 rounded-lg ${isArxivPage() ? (isArxivHtmlPage() ? 'bg-green-50' : 'bg-blue-50') : 'bg-yellow-50'}`}>
             <div className="flex items-center gap-2">
-              <span className="text-lg">{isArxivPage() ? '📄' : '⚠️'}</span>
+              <span className="text-lg">{isArxivPage() ? (isArxivHtmlPage() ? '📄' : '📋') : '⚠️'}</span>
               <div className="flex-1">
-                <p className={`text-sm font-medium ${isArxivPage() ? 'text-green-700' : 'text-yellow-700'}`}>
-                  {isArxivPage() ? 'arXiv 论文页面已就绪' : '请打开 arXiv.org 论文页面'}
+                <p className={`text-sm font-medium ${isArxivPage() ? (isArxivHtmlPage() ? 'text-green-700' : 'text-blue-700') : 'text-yellow-700'}`}>
+                  {isArxivHtmlPage() ? 'HTML 论文页面 - 支持全部功能' : 
+                   isArxivPage() ? `${getArxivPageType() === 'abstract' ? '摘要页' : getArxivPageType()} - 支持基础解读` : 
+                   '请打开 arXiv.org 论文页面'}
                 </p>
-                {isArxivPage() && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    页面类型: {getArxivPageType() === 'abstract' ? '摘要页' : getArxivPageType() === 'pdf' ? 'PDF页' : '其他'}
+                {isArxivPage() && !isArxivHtmlPage() && (
+                  <p className="text-xs text-blue-500 mt-0.5">
+                    💡 访问 /html/ 页面可使用沉浸式翻译等高级功能
                   </p>
                 )}
               </div>
@@ -768,7 +1013,7 @@ arXiv: ${interpretation.paper.arxivUrl}
           {/* 操作按钮 */}
           <div className="flex gap-2">
             <button
-              onClick={handleExtractPaper}
+              onClick={handleExtractHtmlPaper}
               disabled={!isArxivPage()}
               className="flex-1 py-2.5 px-4 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -789,21 +1034,55 @@ arXiv: ${interpretation.paper.arxivUrl}
               <h3 className="font-medium text-gray-800 text-sm line-clamp-2">{currentPaper.title}</h3>
               <div className="text-xs text-gray-500">
                 <p>👥 {currentPaper.authors.slice(0, 3).join(', ')}{currentPaper.authors.length > 3 ? ` 等 ${currentPaper.authors.length} 人` : ''}</p>
-                <p>📂 {currentPaper.categories.map(c => getCategoryName(c)).join(', ')}</p>
-                <p>📅 {currentPaper.publishedDate}</p>
+                {currentPaper.categories.length > 0 && <p>📂 {currentPaper.categories.map(c => getCategoryName(c)).join(', ')}</p>}
+                {currentPaper.publishedDate && <p>📅 {currentPaper.publishedDate}</p>}
+                {paperSections.length > 0 && <p>📑 {paperSections.length} 个章节</p>}
               </div>
               
               {/* 摘要预览 */}
-              <details className="text-xs">
-                <summary className="text-blue-600 cursor-pointer hover:text-blue-700">查看原文摘要</summary>
-                <p className="mt-2 text-gray-600 leading-relaxed">{currentPaper.abstract}</p>
-              </details>
+              {currentPaper.abstract && (
+                <details className="text-xs">
+                  <summary className="text-blue-600 cursor-pointer hover:text-blue-700">查看原文摘要</summary>
+                  <p className="mt-2 text-gray-600 leading-relaxed">{currentPaper.abstract}</p>
+                </details>
+              )}
+            </div>
+          )}
 
-              {/* AI 解读按钮 */}
+          {/* 功能切换按钮 */}
+          {currentPaper && (
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { id: 'interpret', icon: '🤖', label: '解读', color: 'purple' },
+                { id: 'translate', icon: '🌐', label: '翻译', color: 'blue', htmlOnly: true },
+                { id: 'summary', icon: '📝', label: '总结', color: 'green' },
+                { id: 'mindmap', icon: '🧠', label: '脑图', color: 'orange' },
+                { id: 'knowledge', icon: '🔗', label: '图谱', color: 'pink' }
+              ].map(feat => (
+                <button
+                  key={feat.id}
+                  onClick={() => setActiveFeature(feat.id as typeof activeFeature)}
+                  disabled={feat.htmlOnly && !isArxivHtmlPage()}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    activeFeature === feat.id 
+                      ? `bg-${feat.color}-500 text-white` 
+                      : `bg-gray-100 text-gray-600 hover:bg-gray-200`
+                  } ${feat.htmlOnly && !isArxivHtmlPage() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={feat.htmlOnly && !isArxivHtmlPage() ? '需要 HTML 页面' : ''}
+                >
+                  {feat.icon} {feat.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 功能面板 */}
+          {currentPaper && activeFeature === 'interpret' && (
+            <div className="space-y-3">
               <button
                 onClick={handleInterpretPaper}
                 disabled={isLoading}
-                className="w-full mt-3 py-2.5 px-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg font-medium text-sm hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 transition-all"
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-lg font-medium text-sm hover:from-purple-600 hover:to-indigo-600 disabled:opacity-50 transition-all"
               >
                 {isLoading && loadingTool === 'paper-interpret' ? (
                   <span className="flex items-center justify-center gap-2">
@@ -811,9 +1090,226 @@ arXiv: ${interpretation.paper.arxivUrl}
                     AI 正在解读...
                   </span>
                 ) : (
-                  '🤖 AI 通俗解读'
+                  '🤖 生成通俗解读'
                 )}
               </button>
+            </div>
+          )}
+
+          {/* 沉浸式翻译面板 */}
+          {currentPaper && activeFeature === 'translate' && (
+            <div className="space-y-3">
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-700 mb-2">
+                  🌐 沉浸式翻译会在每个段落下方显示中文翻译，方便双语对照阅读
+                </p>
+                {translationProgress && (
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs text-blue-600 mb-1">
+                      <span>翻译进度</span>
+                      <span>{translationProgress.current}/{translationProgress.total}</span>
+                    </div>
+                    <div className="h-1.5 bg-blue-200 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-500 transition-all"
+                        style={{ width: `${(translationProgress.current / translationProgress.total) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleStartTranslation}
+                    disabled={isLoading || !isArxivHtmlPage()}
+                    className="flex-1 py-2 px-3 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                  >
+                    {isLoading && loadingTool === 'translate' ? '翻译中...' : 
+                     getTranslationStatus().active ? '⏸️ 暂停翻译' : '▶️ 开始翻译'}
+                  </button>
+                  <button
+                    onClick={handleRemoveTranslation}
+                    className="py-2 px-3 bg-gray-200 text-gray-700 rounded-lg text-sm hover:bg-gray-300 transition-colors"
+                  >
+                    🗑️ 清除
+                  </button>
+                </div>
+                {getTranslationStatus().count > 0 && (
+                  <p className="text-xs text-green-600 mt-2">✅ 已翻译 {getTranslationStatus().count} 个段落</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 论文总结面板 */}
+          {currentPaper && activeFeature === 'summary' && (
+            <div className="space-y-3">
+              <button
+                onClick={handleGenerateSummary}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-medium text-sm hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 transition-all"
+              >
+                {isLoading && loadingTool === 'summary' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    生成总结中...
+                  </span>
+                ) : (
+                  '📝 生成论文总结'
+                )}
+              </button>
+              
+              {paperSummary && (
+                <div className="p-3 bg-white rounded-lg border border-gray-200 max-h-80 overflow-y-auto">
+                  <div className="prose prose-sm text-gray-700 whitespace-pre-wrap text-sm leading-relaxed">
+                    {paperSummary}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(paperSummary)
+                      alert('✅ 总结已复制')
+                    }}
+                    className="mt-2 w-full py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                  >
+                    📋 复制总结
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 脑图面板 */}
+          {currentPaper && activeFeature === 'mindmap' && (
+            <div className="space-y-3">
+              <button
+                onClick={handleGenerateMindMap}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg font-medium text-sm hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 transition-all"
+              >
+                {isLoading && loadingTool === 'mindmap' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    生成脑图中...
+                  </span>
+                ) : (
+                  '🧠 生成思维导图'
+                )}
+              </button>
+              
+              {mindMap && (
+                <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-500 mb-2">📊 思维导图结构</div>
+                  <div className="max-h-60 overflow-y-auto">
+                    <MindMapTree node={mindMap} />
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleCopyMindMap}
+                      className="flex-1 py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                    >
+                      📋 复制 Mermaid
+                    </button>
+                    <button
+                      onClick={() => {
+                        const md = `# ${currentPaper.title}\n\n` + mindMap.children.map(c => renderMindMapAsMarkdown(c, 2)).join('')
+                        navigator.clipboard.writeText(md)
+                        alert('✅ Markdown 已复制')
+                      }}
+                      className="flex-1 py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                    >
+                      📄 复制 Markdown
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 知识图谱面板 */}
+          {currentPaper && activeFeature === 'knowledge' && (
+            <div className="space-y-3">
+              <button
+                onClick={handleGenerateKnowledgeGraph}
+                disabled={isLoading}
+                className="w-full py-2.5 px-4 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-lg font-medium text-sm hover:from-pink-600 hover:to-rose-600 disabled:opacity-50 transition-all"
+              >
+                {isLoading && loadingTool === 'knowledge' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    提取知识图谱...
+                  </span>
+                ) : (
+                  '🔗 提取知识图谱'
+                )}
+              </button>
+              
+              {knowledgeGraph && (
+                <div className="p-3 bg-white rounded-lg border border-gray-200">
+                  <div className="text-xs text-gray-500 mb-2">🔗 知识图谱 ({knowledgeGraph.nodes.length} 节点, {knowledgeGraph.edges.length} 关系)</div>
+                  
+                  {/* 节点列表 */}
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {['concept', 'method', 'result', 'application'].map(type => {
+                      const nodes = knowledgeGraph.nodes.filter(n => n.type === type)
+                      if (nodes.length === 0) return null
+                      const typeInfo: Record<string, { icon: string; label: string; color: string }> = {
+                        concept: { icon: '📚', label: '概念', color: 'blue' },
+                        method: { icon: '🔧', label: '方法', color: 'green' },
+                        result: { icon: '📊', label: '结果', color: 'yellow' },
+                        application: { icon: '🌍', label: '应用', color: 'purple' }
+                      }
+                      const info = typeInfo[type]
+                      return (
+                        <div key={type}>
+                          <div className="text-xs font-medium text-gray-600 mb-1">{info.icon} {info.label}</div>
+                          <div className="flex flex-wrap gap-1">
+                            {nodes.map(node => (
+                              <span 
+                                key={node.id} 
+                                className={`px-2 py-0.5 bg-${info.color}-50 text-${info.color}-700 text-xs rounded`}
+                                title={node.description}
+                              >
+                                {node.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  
+                  {/* 关系预览 */}
+                  <details className="mt-2">
+                    <summary className="text-xs text-gray-500 cursor-pointer">查看关系 ({knowledgeGraph.edges.length})</summary>
+                    <div className="mt-1 space-y-0.5 max-h-32 overflow-y-auto">
+                      {knowledgeGraph.edges.map((edge, i) => {
+                        const source = knowledgeGraph.nodes.find(n => n.id === edge.source)
+                        const target = knowledgeGraph.nodes.find(n => n.id === edge.target)
+                        return (
+                          <div key={i} className="text-xs text-gray-600">
+                            {source?.label} → <span className="text-blue-600">{edge.relation}</span> → {target?.label}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </details>
+                  
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={handleCopyKnowledgeGraph}
+                      className="flex-1 py-1.5 bg-gray-100 text-gray-600 rounded text-xs hover:bg-gray-200"
+                    >
+                      📋 复制
+                    </button>
+                    <button
+                      onClick={handleSaveKnowledgeGraphToObsidian}
+                      disabled={isSavingToObsidian}
+                      className="flex-1 py-1.5 bg-purple-100 text-purple-700 rounded text-xs hover:bg-purple-200 disabled:opacity-50"
+                    >
+                      {isSavingToObsidian ? '保存中...' : '💾 存到 Obsidian'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

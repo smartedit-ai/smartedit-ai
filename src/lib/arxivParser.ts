@@ -51,11 +51,12 @@ export function isArxivPage(): boolean {
 }
 
 // 获取 arXiv 页面类型
-export function getArxivPageType(): 'abstract' | 'pdf' | 'list' | 'search' | 'unknown' {
+export function getArxivPageType(): 'abstract' | 'pdf' | 'html' | 'list' | 'search' | 'unknown' {
   const path = window.location.pathname
   
   if (path.includes('/abs/')) return 'abstract'
   if (path.includes('/pdf/')) return 'pdf'
+  if (path.includes('/html/')) return 'html'
   if (path.includes('/list/')) return 'list'
   if (path.includes('/search/')) return 'search'
   
@@ -66,14 +67,14 @@ export function getArxivPageType(): 'abstract' | 'pdf' | 'list' | 'search' | 'un
 export function extractPaperId(): string | null {
   const path = window.location.pathname
   
-  // 匹配格式: /abs/2312.12345 或 /pdf/2312.12345
-  const match = path.match(/\/(abs|pdf)\/(\d+\.\d+)(v\d+)?/)
+  // 匹配格式: /abs/2312.12345 或 /pdf/2312.12345 或 /html/2312.12345
+  const match = path.match(/\/(abs|pdf|html)\/(\d+\.\d+)(v\d+)?/)
   if (match) {
     return match[2] + (match[3] || '')
   }
   
   // 旧格式: /abs/cs/0001001
-  const oldMatch = path.match(/\/(abs|pdf)\/([a-z-]+\/\d+)/)
+  const oldMatch = path.match(/\/(abs|pdf|html)\/([a-z-]+\/\d+)/)
   if (oldMatch) {
     return oldMatch[2]
   }
@@ -429,4 +430,486 @@ export function getDifficultyDescription(level: number): string {
     5: '专家级 - 需要深厚专业背景'
   }
   return descriptions[level] || descriptions[3]
+}
+
+// ============================================
+// HTML 页面相关功能
+// ============================================
+
+// 论文章节结构
+export interface PaperSection {
+  id: string
+  level: number
+  title: string
+  content: string
+  subsections: PaperSection[]
+}
+
+// 论文完整内容
+export interface PaperFullContent {
+  paper: ArxivPaper
+  sections: PaperSection[]
+  figures: { id: string; caption: string; src?: string }[]
+  tables: { id: string; caption: string; content: string }[]
+  references: { id: string; text: string; doi?: string }[]
+  equations: { id: string; latex: string }[]
+}
+
+// 知识图谱节点
+export interface KnowledgeNode {
+  id: string
+  label: string
+  type: 'concept' | 'method' | 'result' | 'application' | 'author' | 'paper'
+  description?: string
+}
+
+// 知识图谱边
+export interface KnowledgeEdge {
+  source: string
+  target: string
+  relation: string
+}
+
+// 知识图谱
+export interface KnowledgeGraph {
+  nodes: KnowledgeNode[]
+  edges: KnowledgeEdge[]
+}
+
+// 脑图节点
+export interface MindMapNode {
+  id: string
+  text: string
+  children: MindMapNode[]
+}
+
+// 检测是否为 HTML 论文页面
+export function isArxivHtmlPage(): boolean {
+  return isArxivPage() && getArxivPageType() === 'html'
+}
+
+// 从 HTML 页面提取论文信息
+export function extractPaperFromHtmlPage(): ArxivPaper | null {
+  if (!isArxivHtmlPage()) return null
+  
+  try {
+    const paperId = extractPaperId()
+    if (!paperId) return null
+    
+    // HTML 页面的标题
+    const titleEl = document.querySelector('h1.ltx_title') as HTMLElement
+    const title = titleEl?.textContent?.replace('Title:', '').trim() || document.title
+    
+    // 作者
+    const authorEls = document.querySelectorAll('.ltx_personname')
+    const authors = Array.from(authorEls).map(el => el.textContent?.trim() || '').filter(a => a)
+    
+    // 摘要
+    const abstractEl = document.querySelector('.ltx_abstract') as HTMLElement
+    const abstract = abstractEl?.textContent?.replace('Abstract', '').trim() || ''
+    
+    return {
+      id: paperId,
+      title,
+      authors,
+      abstract,
+      categories: [],
+      publishedDate: '',
+      pdfUrl: `https://arxiv.org/pdf/${paperId}.pdf`,
+      arxivUrl: `https://arxiv.org/abs/${paperId}`
+    }
+  } catch (e) {
+    console.error('从 HTML 页面提取论文信息失败:', e)
+    return null
+  }
+}
+
+// 提取论文章节结构
+export function extractPaperSections(): PaperSection[] {
+  const sections: PaperSection[] = []
+  
+  // 查找所有章节标题
+  const sectionEls = document.querySelectorAll('section.ltx_section, section.ltx_subsection, section.ltx_subsubsection')
+  
+  sectionEls.forEach((sectionEl, index) => {
+    const titleEl = sectionEl.querySelector('h2, h3, h4, h5, h6')
+    const title = titleEl?.textContent?.trim() || `Section ${index + 1}`
+    
+    // 获取章节内容（排除子章节）
+    const contentEls = sectionEl.querySelectorAll(':scope > p, :scope > .ltx_para')
+    const content = Array.from(contentEls).map(el => el.textContent?.trim() || '').join('\n\n')
+    
+    // 判断层级
+    let level = 1
+    if (sectionEl.classList.contains('ltx_subsection')) level = 2
+    if (sectionEl.classList.contains('ltx_subsubsection')) level = 3
+    
+    sections.push({
+      id: sectionEl.id || `section-${index}`,
+      level,
+      title,
+      content,
+      subsections: []
+    })
+  })
+  
+  return sections
+}
+
+// 提取可翻译的段落
+export function extractTranslatableParagraphs(): { id: string; element: HTMLElement; text: string }[] {
+  const paragraphs: { id: string; element: HTMLElement; text: string }[] = []
+  
+  // 选择所有段落元素
+  const paraEls = document.querySelectorAll('.ltx_para p, .ltx_abstract p, section p')
+  
+  paraEls.forEach((el, index) => {
+    const text = el.textContent?.trim() || ''
+    if (text.length > 20) { // 只翻译有意义的段落
+      paragraphs.push({
+        id: `para-${index}`,
+        element: el as HTMLElement,
+        text
+      })
+    }
+  })
+  
+  return paragraphs
+}
+
+// 沉浸式翻译状态
+let immersiveTranslationActive = false
+let translatedElements: Map<HTMLElement, HTMLElement> = new Map()
+
+// 开启沉浸式翻译
+export async function startImmersiveTranslation(
+  translateFn: (text: string) => Promise<string>,
+  onProgress?: (current: number, total: number) => void
+): Promise<void> {
+  if (immersiveTranslationActive) return
+  
+  immersiveTranslationActive = true
+  const paragraphs = extractTranslatableParagraphs()
+  
+  for (let i = 0; i < paragraphs.length; i++) {
+    if (!immersiveTranslationActive) break
+    
+    const { element, text } = paragraphs[i]
+    
+    // 跳过已翻译的
+    if (translatedElements.has(element)) continue
+    
+    try {
+      onProgress?.(i + 1, paragraphs.length)
+      
+      const translation = await translateFn(text)
+      
+      if (translation && immersiveTranslationActive) {
+        // 创建翻译元素
+        const translationEl = document.createElement('div')
+        translationEl.className = 'smartedit-translation'
+        translationEl.style.cssText = `
+          background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+          border-left: 3px solid #0ea5e9;
+          padding: 12px 16px;
+          margin: 8px 0;
+          border-radius: 0 8px 8px 0;
+          font-size: 14px;
+          line-height: 1.8;
+          color: #334155;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        `
+        translationEl.innerHTML = `<span style="color:#0ea5e9;font-weight:500;font-size:12px;display:block;margin-bottom:4px;">🌐 中文翻译</span>${translation}`
+        
+        // 插入到原文后面
+        element.parentNode?.insertBefore(translationEl, element.nextSibling)
+        translatedElements.set(element, translationEl)
+      }
+    } catch (e) {
+      console.error('翻译段落失败:', e)
+    }
+  }
+}
+
+// 停止沉浸式翻译
+export function stopImmersiveTranslation(): void {
+  immersiveTranslationActive = false
+}
+
+// 移除所有翻译
+export function removeAllTranslations(): void {
+  immersiveTranslationActive = false
+  translatedElements.forEach((translationEl) => {
+    translationEl.remove()
+  })
+  translatedElements.clear()
+}
+
+// 获取翻译状态
+export function getTranslationStatus(): { active: boolean; count: number } {
+  return {
+    active: immersiveTranslationActive,
+    count: translatedElements.size
+  }
+}
+
+// ============================================
+// 论文总结功能
+// ============================================
+
+// 生成论文总结提示词
+export function generateSummaryPrompt(paper: ArxivPaper, sections: PaperSection[]): string {
+  const sectionSummary = sections.slice(0, 10).map(s => `### ${s.title}\n${s.content.slice(0, 500)}`).join('\n\n')
+  
+  return `请对以下学术论文进行全面总结，生成结构化的摘要。
+
+## 论文信息
+- **标题**: ${paper.title}
+- **作者**: ${paper.authors.join(', ')}
+- **摘要**: ${paper.abstract}
+
+## 论文章节内容
+${sectionSummary}
+
+## 任务要求
+请生成一份详细的论文总结，包括：
+
+1. **研究问题**：这篇论文要解决什么问题？
+2. **研究动机**：为什么这个问题重要？
+3. **主要方法**：作者提出了什么方法/模型/算法？
+4. **关键创新**：与现有方法相比，有什么创新点？
+5. **实验设计**：如何验证方法的有效性？
+6. **主要结果**：实验结果如何？
+7. **结论与展望**：主要结论是什么？未来方向？
+
+请用中文回答，语言要通俗易懂。`
+}
+
+// ============================================
+// 脑图生成功能
+// ============================================
+
+// 生成脑图提示词
+export function generateMindMapPrompt(paper: ArxivPaper, sections: PaperSection[]): string {
+  const sectionTitles = sections.map(s => s.title).join(', ')
+  
+  return `请根据以下论文信息生成思维导图结构。
+
+## 论文信息
+- **标题**: ${paper.title}
+- **摘要**: ${paper.abstract}
+- **章节**: ${sectionTitles}
+
+## 任务要求
+请生成一个 Markdown 格式的思维导图，使用缩进表示层级关系。格式如下：
+
+# ${paper.title}
+## 研究背景
+### 问题描述
+### 现有方法局限
+## 核心方法
+### 方法1
+### 方法2
+## 实验
+### 数据集
+### 评估指标
+### 结果
+## 结论
+### 主要贡献
+### 未来工作
+
+请根据论文内容填充具体内容，保持结构清晰，每个节点简洁明了（10字以内）。`
+}
+
+// 解析脑图 Markdown 为结构化数据
+export function parseMindMapMarkdown(markdown: string): MindMapNode {
+  const lines = markdown.split('\n').filter(l => l.trim())
+  const root: MindMapNode = { id: 'root', text: 'Paper', children: [] }
+  const stack: { node: MindMapNode; level: number }[] = [{ node: root, level: 0 }]
+  
+  lines.forEach((line, index) => {
+    const match = line.match(/^(#{1,6})\s*(.+)/)
+    if (match) {
+      const level = match[1].length
+      const text = match[2].trim()
+      const newNode: MindMapNode = { id: `node-${index}`, text, children: [] }
+      
+      // 找到父节点
+      while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+        stack.pop()
+      }
+      
+      stack[stack.length - 1].node.children.push(newNode)
+      stack.push({ node: newNode, level })
+    }
+  })
+  
+  return root.children[0] || root
+}
+
+// 生成 Mermaid 脑图代码
+export function generateMermaidMindMap(node: MindMapNode): string {
+  let mermaid = 'mindmap\n'
+  
+  function addNode(n: MindMapNode, depth: number) {
+    const indent = '  '.repeat(depth)
+    const prefix = depth === 0 ? 'root' : ''
+    mermaid += `${indent}${prefix}((${n.text}))\n`
+    n.children.forEach(child => addNode(child, depth + 1))
+  }
+  
+  addNode(node, 0)
+  return mermaid
+}
+
+// 生成 Markmap 格式（Markdown）
+export function generateMarkmapMarkdown(node: MindMapNode, level: number = 1): string {
+  let md = `${'#'.repeat(level)} ${node.text}\n`
+  node.children.forEach(child => {
+    md += generateMarkmapMarkdown(child, level + 1)
+  })
+  return md
+}
+
+// ============================================
+// 知识图谱功能
+// ============================================
+
+// 生成知识图谱提示词
+export function generateKnowledgeGraphPrompt(paper: ArxivPaper, sections: PaperSection[]): string {
+  const sectionContent = sections.slice(0, 5).map(s => `${s.title}: ${s.content.slice(0, 300)}`).join('\n')
+  
+  return `请从以下论文中提取知识图谱，识别关键概念、方法、结果之间的关系。
+
+## 论文信息
+- **标题**: ${paper.title}
+- **摘要**: ${paper.abstract}
+
+## 部分内容
+${sectionContent}
+
+## 任务要求
+请提取论文中的关键实体和关系，输出 JSON 格式：
+
+{
+  "nodes": [
+    {"id": "n1", "label": "Transformer", "type": "method", "description": "一种基于注意力机制的模型架构"},
+    {"id": "n2", "label": "Self-Attention", "type": "concept", "description": "自注意力机制"},
+    {"id": "n3", "label": "机器翻译", "type": "application", "description": "将一种语言翻译成另一种语言"}
+  ],
+  "edges": [
+    {"source": "n1", "target": "n2", "relation": "使用"},
+    {"source": "n1", "target": "n3", "relation": "应用于"}
+  ]
+}
+
+节点类型包括：concept（概念）、method（方法）、result（结果）、application（应用）
+请提取 8-15 个关键节点和它们之间的关系。确保输出是有效的 JSON。`
+}
+
+// 解析知识图谱 JSON
+export function parseKnowledgeGraph(jsonStr: string): KnowledgeGraph | null {
+  try {
+    // 提取 JSON
+    let json = jsonStr
+    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/)
+    if (jsonMatch) {
+      json = jsonMatch[1]
+    }
+    
+    json = json.trim()
+    if (!json.startsWith('{')) {
+      const startIdx = json.indexOf('{')
+      if (startIdx !== -1) json = json.slice(startIdx)
+    }
+    if (!json.endsWith('}')) {
+      const endIdx = json.lastIndexOf('}')
+      if (endIdx !== -1) json = json.slice(0, endIdx + 1)
+    }
+    
+    const parsed = JSON.parse(json)
+    return {
+      nodes: parsed.nodes || [],
+      edges: parsed.edges || []
+    }
+  } catch (e) {
+    console.error('解析知识图谱失败:', e)
+    return null
+  }
+}
+
+// 生成 Mermaid 知识图谱代码
+export function generateMermaidGraph(graph: KnowledgeGraph): string {
+  let mermaid = 'graph LR\n'
+  
+  // 添加节点样式
+  const typeStyles: Record<string, string> = {
+    concept: 'fill:#e0f2fe,stroke:#0ea5e9',
+    method: 'fill:#dcfce7,stroke:#22c55e',
+    result: 'fill:#fef3c7,stroke:#f59e0b',
+    application: 'fill:#f3e8ff,stroke:#a855f7'
+  }
+  
+  // 添加节点
+  graph.nodes.forEach(node => {
+    const shape = node.type === 'method' ? `[${node.label}]` : `(${node.label})`
+    mermaid += `  ${node.id}${shape}\n`
+  })
+  
+  // 添加边
+  graph.edges.forEach(edge => {
+    mermaid += `  ${edge.source} -->|${edge.relation}| ${edge.target}\n`
+  })
+  
+  // 添加样式
+  graph.nodes.forEach(node => {
+    const style = typeStyles[node.type] || typeStyles.concept
+    mermaid += `  style ${node.id} ${style}\n`
+  })
+  
+  return mermaid
+}
+
+// 格式化知识图谱为 Markdown
+export function formatKnowledgeGraphAsMarkdown(graph: KnowledgeGraph, paper: ArxivPaper): string {
+  const typeNames: Record<string, string> = {
+    concept: '📚 概念',
+    method: '🔧 方法',
+    result: '📊 结果',
+    application: '🌍 应用'
+  }
+  
+  let md = `# 知识图谱: ${paper.title}\n\n`
+  
+  // 按类型分组节点
+  const nodesByType: Record<string, KnowledgeNode[]> = {}
+  graph.nodes.forEach(node => {
+    if (!nodesByType[node.type]) nodesByType[node.type] = []
+    nodesByType[node.type].push(node)
+  })
+  
+  // 输出节点
+  md += `## 关键实体\n\n`
+  Object.entries(nodesByType).forEach(([type, nodes]) => {
+    md += `### ${typeNames[type] || type}\n\n`
+    nodes.forEach(node => {
+      md += `- **${node.label}**${node.description ? `: ${node.description}` : ''}\n`
+    })
+    md += '\n'
+  })
+  
+  // 输出关系
+  md += `## 关系网络\n\n`
+  graph.edges.forEach(edge => {
+    const source = graph.nodes.find(n => n.id === edge.source)
+    const target = graph.nodes.find(n => n.id === edge.target)
+    if (source && target) {
+      md += `- ${source.label} **${edge.relation}** ${target.label}\n`
+    }
+  })
+  
+  // 添加 Mermaid 图
+  md += `\n## 可视化图谱\n\n\`\`\`mermaid\n${generateMermaidGraph(graph)}\`\`\`\n`
+  
+  return md
 }
