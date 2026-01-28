@@ -270,19 +270,6 @@ EditorHelper/
 - ✨ 配图中心
 - ✨ 一键排版
 
----
-
-## 🤝 贡献指南
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
 
 ## 📄 许可证
 
@@ -292,8 +279,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ## 💬 联系我们
 
-- 问题反馈: [GitHub Issues](https://github.com/smartedit/issues)
-- 邮箱: support@smartedit.ai
+- 问题反馈: [GitHub Issues](https://github.com/smartedit-ai/smartedit-ai/issues)
+- 邮箱: support@smartedit.app
 
 ---
 
