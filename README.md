@@ -286,6 +286,23 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ---
 
+## ☕ 请作者喝杯咖啡
+
+如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
+
 <p align="center">
-  Made with ❤️ for WeChat Official Account Creators
+  <img src="assets/qrcode/wechat-pay.jpg" alt="微信赞赏码" width="200" style="margin: 0 20px;">
+  <img src="assets/qrcode/alipay.jpg" alt="支付宝收款码" width="200" style="margin: 0 20px;">
+</p>
+
+<p align="center">
+  <em>微信赞赏</em>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em>支付宝</em>
+</p>
+
+---
+
+<p align="center">
+  Made with ❤️ for Content Creators
 </p>
