@@ -280,7 +280,15 @@ function createContextMenus() {
     chrome.contextMenus.create({
       id: 'smartedit-sidebar',
       parentId: 'smartedit-root',
-      title: '📌 打开侧边栏',
+      title: '📌 打开左侧侧边栏',
+      contexts: ['all']
+    })
+
+    // 打开右侧助手
+    chrome.contextMenus.create({
+      id: 'smartedit-right-sidebar',
+      parentId: 'smartedit-root',
+      title: '🎯 打开右侧助手',
       contexts: ['all']
     })
   })
@@ -301,6 +309,15 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       chrome.tabs.sendMessage(tab.id, {
         type: 'TOGGLE_SIDEBAR'
       })
+    }
+    return
+  }
+  
+  // 处理打开右侧助手 - 使用浏览器原生 Side Panel
+  if (menuId === 'smartedit-right-sidebar') {
+    if (tab?.id) {
+      // 使用 Chrome Side Panel API 打开侧边面板
+      chrome.sidePanel.open({ windowId: tab.windowId })
     }
     return
   }

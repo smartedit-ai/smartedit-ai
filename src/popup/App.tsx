@@ -111,19 +111,26 @@ export default function App() {
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <line x1="9" y1="3" x2="9" y2="21"/>
               </svg>
-              <span className="text-sm font-medium text-gray-700">打开侧边栏</span>
+              <span className="text-sm font-medium text-gray-700">左侧侧边栏</span>
+            </button>
+            <button onClick={async () => {
+              const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+              if (currentTab?.windowId) {
+                chrome.sidePanel.open({ windowId: currentTab.windowId })
+                window.close()
+              }
+            }} className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-blue-500">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+              <span className="text-sm font-medium text-gray-700">右侧助手</span>
             </button>
             <button onClick={() => sendMessage('OPEN_TAB', 'ai')} className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary hover:bg-primary-light/30 transition-all">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-primary">
                 <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>
               </svg>
               <span className="text-sm font-medium text-gray-700">AI 标题</span>
-            </button>
-            <button onClick={() => sendMessage('OPEN_TAB', 'styles')} className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary hover:bg-primary-light/30 transition-all">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-primary">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-              </svg>
-              <span className="text-sm font-medium text-gray-700">样式库</span>
             </button>
             <button onClick={() => sendMessage('OPEN_TAB', 'format')} className="flex flex-col items-center gap-2 p-4 bg-white border border-gray-200 rounded-xl hover:border-primary hover:bg-primary-light/30 transition-all">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5 text-primary">

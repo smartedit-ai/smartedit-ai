@@ -14,7 +14,8 @@
     "storage",
     "activeTab",
     "scripting",
-    "contextMenus"
+    "contextMenus",
+    "sidePanel"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -49,5 +50,8 @@
       "matches": ["<all_urls>"]
     }
   ],
-  "options_page": "src/options/index.html"
+  "options_page": "src/options/index.html",
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  }
 }
