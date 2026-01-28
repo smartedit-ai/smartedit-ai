@@ -18,6 +18,8 @@ import {
   isSupportedChatPlatform,
   getPlatformInfo
 } from '../lib/chatExtractor'
+import { isYouTubeWatchPage } from '../lib/youtubeSubtitle'
+import YouTubeSubtitlePanel from './components/YouTubeSubtitlePanel'
 
 // 敏感词库
 const SENSITIVE_WORDS: Record<string, string[]> = {
@@ -35,6 +37,7 @@ const SENSITIVE_WORDS: Record<string, string[]> = {
 let sidebarRoot: Root | null = null
 let floatingPanelRoot: Root | null = null
 let selectionToolbarRoot: Root | null = null
+let youtubeSubtitleRoot: Root | null = null
 let sidebarRef: { setIsOpen: (open: boolean) => void; setActiveTab: (tab: string) => void } | null = null
 let floatingPanelState: { 
   setIsOpen: (open: boolean) => void
@@ -89,6 +92,63 @@ function SelectionToolbarWrapper() {
   })
 }
 
+// YouTube 字幕面板初始化
+function initYouTubeSubtitlePanel() {
+  // 避免重复注入
+  if (document.getElementById('smartedit-youtube-subtitle-root')) {
+    return
+  }
+  
+  // 等待视频播放器加载
+  const waitForPlayer = () => {
+    // 查找视频播放器下方的区域
+    const belowPlayer = document.querySelector('#below, #secondary-inner, ytd-watch-metadata')
+    const primaryInner = document.querySelector('#primary-inner')
+    
+    if (belowPlayer || primaryInner) {
+      const container = document.createElement('div')
+      container.id = 'smartedit-youtube-subtitle-root'
+      container.style.cssText = 'width: 100%; max-width: 1280px; margin: 0 auto;'
+      
+      // 插入到视频下方
+      if (primaryInner) {
+        const videoContainer = primaryInner.querySelector('#player')
+        if (videoContainer && videoContainer.nextSibling) {
+          primaryInner.insertBefore(container, videoContainer.nextSibling)
+        } else {
+          primaryInner.appendChild(container)
+        }
+      } else if (belowPlayer) {
+        belowPlayer.parentNode?.insertBefore(container, belowPlayer)
+      }
+      
+      youtubeSubtitleRoot = createRoot(container)
+      youtubeSubtitleRoot.render(React.createElement(YouTubeSubtitlePanel, {
+        onClose: () => removeYouTubeSubtitlePanel()
+      }))
+      
+      console.log('智编助手: YouTube 字幕面板已加载')
+    } else {
+      // 如果还没找到，继续等待
+      setTimeout(waitForPlayer, 500)
+    }
+  }
+  
+  waitForPlayer()
+}
+
+// 移除 YouTube 字幕面板
+function removeYouTubeSubtitlePanel() {
+  const container = document.getElementById('smartedit-youtube-subtitle-root')
+  if (container) {
+    if (youtubeSubtitleRoot) {
+      youtubeSubtitleRoot.unmount()
+      youtubeSubtitleRoot = null
+    }
+    container.remove()
+  }
+}
+
 // 排除特殊页面（扩展页面、浏览器内置页面等）
 const isExcludedPage = () => {
   const url = window.location.href
@@ -137,6 +197,37 @@ function init() {
   // 渲染划词工具栏组件
   selectionToolbarRoot = createRoot(selectionToolbarContainer)
   selectionToolbarRoot.render(React.createElement(SelectionToolbarWrapper))
+
+  // YouTube 页面注入字幕面板
+  if (isYouTubeWatchPage()) {
+    initYouTubeSubtitlePanel()
+  }
+  
+  // 监听 YouTube 页面导航（SPA）
+  if (window.location.hostname.includes('youtube.com')) {
+    // YouTube 使用 History API 进行页面导航
+    const originalPushState = history.pushState
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args)
+      setTimeout(() => {
+        if (isYouTubeWatchPage()) {
+          initYouTubeSubtitlePanel()
+        } else {
+          removeYouTubeSubtitlePanel()
+        }
+      }, 1000)
+    }
+    
+    window.addEventListener('popstate', () => {
+      setTimeout(() => {
+        if (isYouTubeWatchPage()) {
+          initYouTubeSubtitlePanel()
+        } else {
+          removeYouTubeSubtitlePanel()
+        }
+      }, 1000)
+    })
+  }
 
   // 监听来自 popup 和 background 的消息
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
