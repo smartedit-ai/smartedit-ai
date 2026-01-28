@@ -1,5 +1,7 @@
 # SmartEdit：一个智能的编辑辅助工具。
 
+简体中文 | [English](README.en.md)
+
 <p align="center">
   <img src="assets/icons/icon128.png" alt="智能的编辑辅助工具" width="128" height="128">
 </p>
