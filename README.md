@@ -19,12 +19,12 @@
 </p>
 
 <p align="center">
-  <img src="image/2.png" alt="AI 写作助手" width="800"><br>
-  <em>AI 写作助手 - 智能生成标题和文章内容</em>
+  <img src="image/7.png" alt="自定义模块化配置" width="800"><br>
+  <em>自定义模块化配置</em>
 </p>
 
 <p align="center">
-  <img src="image/3.png" alt="设置页面" width="800"><br>
+  <img src="image/9.png" alt="设置页面" width="800"><br>
   <em>设置页面 - 灵活配置 AI 服务和主题</em>
 </p>
 
