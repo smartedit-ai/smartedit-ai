@@ -1,12 +1,12 @@
-# 智编助手 SmartEdit AI
+# SmartEdit：一个智能的编辑辅助工具。
 
 <p align="center">
-  <img src="assets/icons/icon128.png" alt="智编助手" width="128" height="128">
+  <img src="assets/icons/icon128.png" alt="智能的编辑辅助工具" width="128" height="128">
 </p>
 
 <p align="center">
   <strong>AI编辑器增强工具</strong><br>
-  AI 写作 · 样式库 · 一键排版 · 配图中心
+  AI 写作 · AI 摘要 · RSS · Obsidian集成
 </p>
 
 ---
