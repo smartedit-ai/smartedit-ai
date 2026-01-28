@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>微信公众号编辑器增强工具</strong><br>
+  <strong>AI编辑器增强工具</strong><br>
   AI 写作 · 样式库 · 一键排版 · 配图中心
 </p>
 
