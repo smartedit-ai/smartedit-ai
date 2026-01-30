@@ -13,6 +13,16 @@
 
 ---
 
+## 💡 About This Project
+
+SmartEdit is a **locally-running** intelligent editing assistant tool that requires **no cloud synchronization**.
+
+Users only need to configure their own API Keys for various services as needed, and use them without paying any additional fees. All data is processed locally to protect your privacy.
+
+For detailed configuration instructions, please refer to: [Documentation](https://docs.smartedit.app/)
+
+---
+
 ## 📸 Feature Preview
 
 <p align="center">
