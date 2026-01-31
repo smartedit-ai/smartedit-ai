@@ -294,6 +294,22 @@ MIT License - See [LICENSE](LICENSE) file for details
 - Issue Feedback: [GitHub Issues](https://github.com/smartedit-ai/smartedit-ai/issues)
 - Email: support@smartedit.app
 
+---
+
+## ☕ Buy Me a Coffee
+
+If this project helps you, feel free to buy me a coffee ☕
+
+<p align="center">
+  <img src="assets/qrcode/wechat-pay.jpg" alt="WeChat Pay" width="200" style="margin: 0 20px;">
+  <img src="assets/qrcode/alipay.jpg" alt="Alipay" width="200" style="margin: 0 20px;">
+</p>
+
+<p align="center">
+  <em>WeChat Pay</em>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em>Alipay</em>
+</p>
 
 ---
 

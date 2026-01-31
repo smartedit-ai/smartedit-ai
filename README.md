@@ -13,16 +13,6 @@
 
 ---
 
-## 💡 关于本项目
-
-SmartEdit 是一款**本地化运行**的智能编辑辅助工具，**无需云端同步**。
-
-用户只需自行按需配置各类服务的 API Key，即可按需使用，**无需支付其他费用**。所有数据均在本地处理，保护您的隐私安全。
-
-详细配置说明请参考：[文档中心](https://docs.smartedit.app/)
-
----
-
 ## 📸 功能预览
 
 <p align="center">
@@ -294,6 +284,22 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 - 问题反馈: [GitHub Issues](https://github.com/smartedit-ai/smartedit-ai/issues)
 - 邮箱: support@smartedit.app
 
+---
+
+## ☕ 请作者喝杯咖啡
+
+如果这个项目对你有帮助，欢迎请作者喝杯咖啡 ☕
+
+<p align="center">
+  <img src="assets/qrcode/wechat-pay.jpg" alt="微信赞赏码" width="200" style="margin: 0 20px;">
+  <img src="assets/qrcode/alipay.jpg" alt="支付宝收款码" width="200" style="margin: 0 20px;">
+</p>
+
+<p align="center">
+  <em>微信赞赏</em>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em>支付宝</em>
+</p>
 
 ---
 
